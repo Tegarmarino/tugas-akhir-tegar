@@ -11,6 +11,9 @@ use App\Http\Controllers\ReadingController;
 use App\Http\Controllers\BookmarkController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Controllers\QuizController;
+use App\Http\Controllers\Admin\QuestionController;
+use App\Http\Controllers\Admin\AdminChapterController;
+use App\Http\Controllers\Admin\AdminTestController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -50,7 +53,23 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     Route::resource('books', AdminBookController::class);
+    Route::resource('questions', QuestionController::class);
     // Rute admin lainnya
+    // ✅ Tambahkan routes chapters di sini
+    Route::get('/books/{book}/chapters', [AdminChapterController::class, 'index'])->name('chapters.index');
+    Route::post('/books/{book}/chapters', [AdminChapterController::class, 'store'])->name('chapters.store');
+    Route::get('/books/{book}/chapters/{chapter}/edit', [AdminChapterController::class, 'edit'])->name('chapters.edit');
+    Route::put('/books/{book}/chapters/{chapter}', [AdminChapterController::class, 'update'])->name('chapters.update');
+    Route::delete('/books/{book}/chapters/{chapter}', [AdminChapterController::class, 'destroy'])->name('chapters.destroy');
+
+    Route::get('books/{book}/assign-pretest', [AdminTestController::class, 'createPreTest'])->name('tests.pre.create');
+    Route::post('books/{book}/assign-pretest', [AdminTestController::class, 'storePreTest'])->name('tests.pre.store');
+
+    Route::get('books/{book}/pretest', [AdminTestController::class, 'showPreTest'])->name('tests.pre.show');
+    Route::get('books/{book}/pretest/edit', [AdminTestController::class, 'editPreTest'])->name('tests.pre.edit');
+    Route::post('books/{book}/pretest/update', [AdminTestController::class, 'updatePreTest'])->name('tests.pre.update');
+
+
 });
 
 require __DIR__.'/auth.php';

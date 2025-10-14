@@ -84,9 +84,13 @@
                             <a href="{{ route('admin.books.index') }}" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                                 Batal
                             </a>
+                            <a href="{{ route('admin.chapters.index', $book->id) }}" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                                Kelola Bab / Sub-Bab
+                            </a>
                             <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                 Update Buku
                             </button>
+                            <div class="mt-6 flex justify-between items-center">
                         </div>
                     </form>
                 </div>

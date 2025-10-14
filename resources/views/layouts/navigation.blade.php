@@ -30,6 +30,10 @@
                         <x-nav-link :href="route('admin.books.index')" :active="request()->routeIs('admin.books.index') || request()->routeIs('admin.books.create') || request()->routeIs('admin.books.edit')">
                             {{ __('Manajemen Buku (Admin)') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('admin.questions.index')" :active="request()->routeIs('admin.questions.*')">
+                            {{ __('Bank Soal') }}
+                        </x-nav-link>
+
                         {{-- Tambahkan link admin lainnya di sini jika ada --}}
                     @endif
                 </div>
@@ -100,6 +104,10 @@
                 <x-responsive-nav-link :href="route('admin.books.index')" :active="request()->routeIs('admin.books.index') || request()->routeIs('admin.books.create') || request()->routeIs('admin.books.edit')">
                     {{ __('Manajemen Buku (Admin)') }}
                 </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.questions.index')" :active="request()->routeIs('admin.questions.*')">
+                    {{ __('Bank Soal') }}
+                </x-responsive-nav-link>
+
                 {{-- Tambahkan link admin lainnya di sini jika ada --}}
             @endif
         </div>

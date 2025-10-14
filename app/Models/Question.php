@@ -2,34 +2,26 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Question extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'quiz_id',
         'question_text',
-        'options',
+        'option_a',
+        'option_b',
+        'option_c',
+        'option_d',
         'correct_answer',
+        'tag',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array
-     */
-    protected $casts = [
-        'options' => 'array', // Otomatis konversi JSON ke array PHP
-    ];
-
-    /**
-     * Get the quiz that this question belongs to.
-     */
-    public function quiz()
-    {
-        return $this->belongsTo(Quiz::class);
-    }
+    // Relasi ke TestQuestion (nanti saat assign test)
+    // public function testQuestions()
+    // {
+    //     return $this->hasMany(TestQuestion::class);
+    // }
 }

@@ -70,6 +70,11 @@
                                                 {{ $book->publication_date ? $book->publication_date->format('d M Y') : '-' }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <a href="{{ route('admin.tests.pre.show', $book->id) }}"
+                                                    class="text-indigo-600 hover:underline">
+                                                    Pre-Test
+                                                </a>
+
                                                 <a href="{{ route('admin.books.edit', $book) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</a>
                                                 <form action="{{ route('admin.books.destroy', $book) }}" method="POST" class="inline-block" onsubmit="return confirm('Apakah Anda yakin ingin menghapus buku ini: {{ addslashes($book->title) }}?');">
                                                     @csrf
