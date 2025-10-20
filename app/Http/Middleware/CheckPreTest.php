@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use App\Models\Result;
 use Illuminate\Support\Facades\Auth;
 
 class CheckPreTest
@@ -14,18 +13,21 @@ class CheckPreTest
         $book = $request->route('book');
         $user = Auth::user();
 
-        if ($book && $user) {
-            $preTest = $book->tests()->where('type', 'pre')->first();
+        if (!$user) return redirect()->route('login');
 
-            if ($preTest) {
-                $hasDone = Result::where('user_id', $user->id)
-                    ->where('test_id', $preTest->id)
-                    ->exists();
+        // Ambil pre-test untuk buku ini
+        $preTest = $book->tests()->where('type', 'pre')->first();
 
-                if (!$hasDone) {
-                    session()->flash('show_pretest_modal', true);
-                    session()->flash('pretest_id', $preTest->id);
-                }
+        if ($preTest) {
+            $hasDone = \App\Models\Result::where('user_id', $user->id)
+                ->where('test_id', $preTest->id)
+                ->exists();
+
+            if (!$hasDone) {
+                session([
+                    'show_pretest_modal' => true,
+                    'pretest_id' => $preTest->id,
+                ]);
             }
         }
 

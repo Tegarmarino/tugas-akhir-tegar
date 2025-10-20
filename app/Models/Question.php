@@ -31,4 +31,10 @@ class Question extends Model
             'd' => $this->option_d,
         ];
     }
+
+    public function tests()
+    {
+        return $this->belongsToMany(\App\Models\Test::class, 'test_questions');
+    }
+
 }

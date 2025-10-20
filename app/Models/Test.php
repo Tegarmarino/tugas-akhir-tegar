@@ -22,6 +22,6 @@ class Test extends Model
 
     public function questions()
     {
-        return $this->belongsToMany(Question::class, 'test_questions');
+        return $this->belongsToMany(\App\Models\Question::class, 'test_questions');
     }
 }

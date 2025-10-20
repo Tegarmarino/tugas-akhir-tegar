@@ -48,18 +48,54 @@ class BookController extends Controller
      * @param  \App\Models\Book  $book
      * @return \Illuminate\View\View
      */
+    // public function show(Book $book)
+    // {
+    //     // Eager load relasi yang mungkin diperlukan di view detail buku
+    //     // Misalnya, untuk mengecek apakah user saat ini sudah memfavoritkan buku ini
+    //     $isFavorited = false;
+    //     if (Auth::check()) {
+    //         $isFavorited = Auth::user()->favoriteBooks()->where('book_id', $book->id)->exists();
+    //     }
+
+    //     // Mengarah ke view 'books.show' untuk tampilan pengguna
+    //     return view('books.show', compact('book', 'isFavorited'));
+    // }
+
+
     public function show(Book $book)
     {
-        // Eager load relasi yang mungkin diperlukan di view detail buku
-        // Misalnya, untuk mengecek apakah user saat ini sudah memfavoritkan buku ini
         $isFavorited = false;
         if (Auth::check()) {
             $isFavorited = Auth::user()->favoriteBooks()->where('book_id', $book->id)->exists();
         }
 
-        // Mengarah ke view 'books.show' untuk tampilan pengguna
-        return view('books.show', compact('book', 'isFavorited'));
+        // Cek apakah buku punya pre-test
+        $preTest = $book->tests()->where('type', 'pre')->first();
+
+        if ($preTest && $preTest->questions()->count() === 0) {
+            session()->flash('error', 'Pre-test belum memiliki soal.');
+        }
+
+
+
+        // Cek apakah user sudah mengerjakan pre-test
+        $hasPreTestDone = false;
+        $userScore = null;
+
+        if (Auth::check() && $preTest) {
+            $result = \App\Models\Result::where('user_id', Auth::id())
+                ->where('test_id', $preTest->id)
+                ->first();
+
+            if ($result) {
+                $hasPreTestDone = true;
+                $userScore = $result->score;
+            }
+        }
+
+        return view('books.show', compact('book', 'isFavorited', 'hasPreTestDone', 'userScore', 'preTest'));
     }
+
 
     // Metode create(), store(), edit(), update(), destroy()
     // TIDAK ADA di controller ini karena itu adalah fungsi admin.

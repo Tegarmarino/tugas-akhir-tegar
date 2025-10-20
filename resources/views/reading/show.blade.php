@@ -82,122 +82,209 @@
                 </div>
 
                 {{-- ===================
-                     CHAT AI AREA
-                ==================== --}}
-                <div class="w-full h-[40%] lg:h-[90vh] lg:w-[40%] bg-white dark:bg-gray-800 p-4 shadow-lg flex flex-col rounded-lg overflow-hidden">
-                    <h2 class="text-xl font-semibold mb-3 text-gray-900 dark:text-gray-100">💬 Chat dengan Asisten AI</h2>
+                    CHAT AI AREA
+                =================== --}}
+                <div class="w-full h-[40%] lg:h-[90vh] lg:w-[40%] bg-white dark:bg-gray-900 p-4 shadow-xl flex flex-col rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center mb-3">
+                        <div class="h-2 w-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Chat Asisten AI 📘</h2>
+                    </div>
                     <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Buku: <span class="font-medium">{{ $book->title }}</span></p>
 
-                    {{-- Chat Output --}}
-                    <div id="chat-output" class="flex-grow overflow-y-auto border dark:border-gray-600 p-2 mb-3 rounded bg-gray-50 dark:bg-gray-700 text-sm prose dark:prose-invert max-w-none"></div>
+                    {{-- CHAT OUTPUT AREA --}}
+                    <div id="chat-output" class="flex-grow overflow-y-auto p-3 mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 space-y-3">
+                        <div class="text-center text-gray-400 text-xs italic mt-10">✨ Tanyakan sesuatu tentang halaman atau bab ini...</div>
+                    </div>
 
                     {{-- Form Chat --}}
-                    <form id="chat-form">
-                        <textarea id="chat-input" rows="3"
-                            class="w-full p-2 border dark:border-gray-600 rounded mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-sm"
-                            placeholder="Tanyakan sesuatu tentang halaman atau bab ini..."></textarea>
+                    <form id="chat-form" class="mt-auto">
+                        <textarea id="chat-input" rows="2"
+                            class="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-lg mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                            placeholder="Tanyakan sesuatu..."></textarea>
 
                         <div class="flex gap-2">
                             <button type="submit" id="send-chat-btn"
-                                class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded text-sm">
+                                class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-all duration-150 ease-in-out">
                                 💬 Tanya Halaman Ini
                             </button>
 
                             <button type="button" id="send-chapter-btn"
-                                class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-sm">
+                                class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-all duration-150 ease-in-out">
                                 🔍 Tanya Bab Ini
                             </button>
                         </div>
                     </form>
                 </div>
+
             </div>
         </div>
     </div>
 
-    {{-- ===================
-         SCRIPT & LOGIC
-    ==================== --}}
     @push('styles')
-        <style>
-        /* ========== CHAT BUBBLES ========== */
-        #chat-output {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
+    <style>
+    /* ========== Chat Layout Animations ========== */
+    .chat-bubble {
+        max-width: 90%;
+        padding: 0.9rem 1.1rem;
+        border-radius: 1rem;
+        line-height: 1.5;
+        animation: fadeIn 0.25s ease-in-out;
+        transition: all 0.3s ease;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
-        .chat-bubble {
-            max-width: 85%;
-            padding: 0.75rem 1rem;
-            border-radius: 1rem;
-            line-height: 1.4;
-            word-wrap: break-word;
-            font-size: 0.875rem;
-            animation: fadeIn 0.25s ease-in-out;
-        }
+    /* ========== User Message ========== */
+    .user-message {
+        align-self: flex-end;
+        background: linear-gradient(135deg, #4f46e5, #3b82f6);
+        color: #fff;
+        border-bottom-right-radius: 0.3rem;
+        text-align: right;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+    /* ========== AI Message ========== */
+    .ai-message {
+        align-self: flex-start;
+        background: linear-gradient(to bottom right, #f9fafb, #f3f4f6);
+        border: 1px solid #e5e7eb;
+        color: #111827;
+        border-bottom-left-radius: 0.3rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        font-size: 0.95rem;
+    }
+    .dark .ai-message {
+        background: linear-gradient(to bottom right, #1f2937, #111827);
+        border-color: #374151;
+        color: #e5e7eb;
+    }
 
-        /* USER CHAT */
-        .user-message {
-            align-self: flex-end;
-            background: linear-gradient(135deg, #4F46E5, #3B82F6);
-            color: #fff;
-            border-bottom-right-radius: 0.25rem;
-            text-align: right;
-        }
+    /* ========== Markdown Formatting ========== */
+    .ai-message .prose {
+        max-width: 100%;
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 0.93rem;
+    }
+    .ai-message .prose h1,
+    .ai-message .prose h2,
+    .ai-message .prose h3 {
+        font-weight: 700;
+        color: #1e40af;
+        margin-top: 0.75rem;
+    }
+    .dark .ai-message .prose h1,
+    .dark .ai-message .prose h2,
+    .dark .ai-message .prose h3 {
+        color: #93c5fd;
+    }
+    .ai-message .prose table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0.75rem;
+    }
+    .ai-message .prose th,
+    .ai-message .prose td {
+        border: 1px solid #d1d5db;
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+    }
+    .ai-message .prose blockquote {
+        border-left: 3px solid #3b82f6;
+        padding-left: 0.75rem;
+        font-style: italic;
+        color: #4b5563;
+    }
+    .dark .ai-message .prose blockquote {
+        color: #9ca3af;
+        border-color: #60a5fa;
+    }
 
-        /* AI CHAT */
-        .ai-message {
-            align-self: flex-start;
-            background-color: #F3F4F6;
-            color: #1F2937;
-            border-bottom-left-radius: 0.25rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
+    /* ========== Scrollbar ========== */
+    #chat-output::-webkit-scrollbar {
+        width: 6px;
+    }
+    #chat-output::-webkit-scrollbar-thumb {
+        background: #9ca3af;
+        border-radius: 4px;
+    }
 
-        .dark .ai-message {
-            background-color: #374151;
-            color: #E5E7EB;
-        }
+    /* ====== FIX MATHJAX OVERFLOW DAN UKURAN ====== */
+    .ai-message .MathJax,
+    .ai-message mjx-container {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        display: inline-block;
+        vertical-align: middle;
+    }
 
-        /* SYSTEM/TIPS MESSAGE */
-        .system-message {
-            align-self: center;
-            font-size: 0.75rem;
-            color: #6B7280;
-            background: transparent;
-            padding: 0.25rem;
-            font-style: italic;
-        }
+    .ai-message mjx-container[jax="SVG"] svg {
+        max-width: 100% !important;
+        height: auto !important;
+    }
 
-        #chapter-jump option {
-            background-color: #fff;
-            color: #111827;
-        }
-        .dark #chapter-jump option {
-            background-color: #1f2937;
-            color: #e5e7eb;
-        }
+    .ai-message mjx-container[jax="SVG"][display="true"] {
+        display: block;
+        margin: 1rem auto;
+        text-align: center;
+    }
 
-        </style>
-        @endpush
+    /* Supaya teks sekitarnya tetap sejajar */
+    .ai-message p {
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+
+    /* Sedikit spacing tambahan antar rumus dan teks */
+    .ai-message mjx-container + p,
+    .ai-message p + mjx-container {
+        margin-top: 0.5rem;
+    }
+    </style>
+    </style>
+    @endpush
+
 
     @push('scripts')
+    <script>
+    window.MathJax = {
+    tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+    },
+    svg: {
+        fontCache: 'global',
+        scale: 0.9, // sedikit dikecilin biar proporsional
+    },
+    options: {
+        renderActions: {
+        addMenu: [0, '', ''] // nonaktifkan popup MathJax menu
+        }
+    }
+    };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+
+
+
     <script>
-    // ===== PDF.js CONFIG =====
+    /* ============================
+    KONFIGURASI PDF.JS & VARIABEL
+    ============================ */
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
     const pdfPath = "{{ Storage::url($book->file_path) }}";
     const bookId = {{ $book->id }};
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    const chapterList = @json($book->chapters); // kirim data bab dari Laravel
+    const chapterList = @json($book->chapters);
 
     const canvas = document.getElementById('pdf-canvas');
     const ctx = canvas.getContext('2d');
@@ -209,8 +296,14 @@
     const zoomOutBtn = document.getElementById('zoom-out-btn');
     const zoomLevel = document.getElementById('zoom-level');
 
-    let pdfDoc = null, currentPageNum = {{ $progress->last_page_number ?? 1 }}, scale = 1.5, ZOOM_STEP = 0.25;
+    let pdfDoc = null;
+    let currentPageNum = {{ $progress->last_page_number ?? 1 }};
+    let scale = 1.5;
+    const ZOOM_STEP = 0.25;
 
+    /* ============================
+    FUNGSI RENDER PDF
+    ============================ */
     async function renderPage(num) {
         const page = await pdfDoc.getPage(num);
         const viewport = page.getViewport({ scale: scale });
@@ -221,37 +314,152 @@
         zoomLevel.textContent = Math.round(scale * 100) + '%';
     }
 
+    /* ============================
+    LOAD PDF
+    ============================ */
     pdfjsLib.getDocument(pdfPath).promise.then(doc => {
         pdfDoc = doc;
         pageCountDisplay.textContent = pdfDoc.numPages;
         renderPage(currentPageNum);
     });
 
-    prevPageBtn.addEventListener('click', () => { if (currentPageNum > 1) renderPage(--currentPageNum); });
-    nextPageBtn.addEventListener('click', () => { if (currentPageNum < pdfDoc.numPages) renderPage(++currentPageNum); });
-    zoomInBtn.addEventListener('click', () => { scale += ZOOM_STEP; renderPage(currentPageNum); });
-    zoomOutBtn.addEventListener('click', () => { if (scale > 0.5) { scale -= ZOOM_STEP; renderPage(currentPageNum); } });
+    /* ============================
+    AUTO-SAVE PROGRESS LOGIC
+    ============================ */
+    function debounce(func, delay) {
+        let timeout;
+        return function (...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
 
-    // ===== CHAT LOGIC =====
+    async function saveProgress(page) {
+        try {
+            await fetch("{{ route('books.progress.update', $book) }}", {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({ last_page_number: page })
+            });
+            console.log(`[Progress] Disimpan: halaman ${page}`);
+        } catch (error) {
+            console.error('[Progress] Gagal menyimpan progres:', error);
+        }
+    }
+
+    const debouncedSaveProgress = debounce(saveProgress, 2000);
+
+    /* Simpan progres otomatis sebelum halaman ditutup */
+    window.addEventListener('beforeunload', () => {
+        if (navigator.sendBeacon) {
+            const url = "{{ route('books.progress.update', $book) }}";
+            const data = new Blob(
+                [JSON.stringify({ last_page_number: currentPageNum, _token: csrfToken })],
+                { type: 'application/json' }
+            );
+            navigator.sendBeacon(url, data);
+        } else {
+            saveProgress(currentPageNum);
+        }
+    });
+
+    /* ============================
+    NAVIGASI PDF
+    ============================ */
+    prevPageBtn.addEventListener('click', () => {
+        if (currentPageNum > 1) {
+            currentPageNum--;
+            renderPage(currentPageNum);
+            debouncedSaveProgress(currentPageNum);
+        }
+    });
+
+    nextPageBtn.addEventListener('click', () => {
+        if (currentPageNum < pdfDoc.numPages) {
+            currentPageNum++;
+            renderPage(currentPageNum);
+            debouncedSaveProgress(currentPageNum);
+        }
+    });
+
+    zoomInBtn.addEventListener('click', () => {
+        scale += ZOOM_STEP;
+        renderPage(currentPageNum);
+    });
+
+    zoomOutBtn.addEventListener('click', () => {
+        if (scale > 0.5) {
+            scale -= ZOOM_STEP;
+            renderPage(currentPageNum);
+        }
+    });
+
+    /* ============================
+    LOMPAT KE BAB
+    ============================ */
+    const chapterJumpSelect = document.getElementById('chapter-jump');
+    chapterJumpSelect?.addEventListener('change', async function () {
+        const targetPage = parseInt(this.value);
+        if (!isNaN(targetPage) && pdfDoc) {
+            currentPageNum = targetPage;
+            try {
+                const page = await pdfDoc.getPage(currentPageNum);
+                const viewport = page.getViewport({ scale: scale });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                pageNumDisplay.textContent = currentPageNum;
+                zoomLevel.textContent = Math.round(scale * 100) + '%';
+                document.getElementById('pdf-render-container').scrollTo({ top: 0, behavior: 'smooth' });
+                debouncedSaveProgress(currentPageNum);
+            } catch (err) {
+                console.error('[PDF] Gagal render halaman bab:', err);
+            }
+        }
+    });
+
+    /* ============================
+    CHAT AI LOGIC
+    ============================ */
     const chatOutput = document.getElementById('chat-output');
     const chatInput = document.getElementById('chat-input');
     const chatForm = document.getElementById('chat-form');
     const sendChatBtn = document.getElementById('send-chat-btn');
     const sendChapterBtn = document.getElementById('send-chapter-btn');
 
+    /* Fungsi nambah bubble chat */
     function addChatMessage(message, sender) {
-        const div = document.createElement('div');
-        div.classList.add('chat-bubble');
-        div.classList.add(sender === 'user' ? 'user-message' :
-                        sender === 'ai' ? 'ai-message' :
-                        'system-message');
-        div.innerHTML = marked.parse(message);
+    const div = document.createElement('div');
+    div.classList.add('chat-bubble', sender === 'user' ? 'user-message' : 'ai-message');
+
+    if (sender === 'ai') {
+        const content = document.createElement('div');
+        content.classList.add('prose', 'dark:prose-invert', 'leading-relaxed');
+        content.innerHTML = marked.parse(message);
+        div.appendChild(content);
+        chatOutput.appendChild(div);
+        chatOutput.scrollTop = chatOutput.scrollHeight;
+
+        // Render LaTeX setelah DOM update
+        if (window.MathJax) {
+            setTimeout(() => {
+                MathJax.typesetPromise([content]);
+            }, 150);
+        }
+    } else {
+        div.innerHTML = `<span class="font-medium text-white">${message}</span>`;
         chatOutput.appendChild(div);
         chatOutput.scrollTop = chatOutput.scrollHeight;
     }
+    }
 
 
-    // Cari ID bab berdasarkan halaman aktif
+
+
+    /* Fungsi cari bab aktif */
     function getCurrentChapterId(pageNum) {
         if (!chapterList || chapterList.length === 0) return null;
         for (const c of chapterList) {
@@ -262,7 +470,7 @@
         return null;
     }
 
-    // ===== PER HALAMAN =====
+    /* ===== CHAT PER HALAMAN ===== */
     chatForm.addEventListener('submit', async e => {
         e.preventDefault();
         const question = chatInput.value.trim();
@@ -286,7 +494,7 @@
         }
     });
 
-    // ===== PER BAB =====
+    /* ===== CHAT PER BAB ===== */
     sendChapterBtn.addEventListener('click', async () => {
         const question = chatInput.value.trim();
         if (!question) return addChatMessage("⚠️ Tulis pertanyaan di kolom chat dulu sebelum kirim.", 'ai');
@@ -313,39 +521,6 @@
             sendChapterBtn.disabled = false;
         }
     });
-
-    // ===== LOMPAT KE BAB =====
-    const chapterJumpSelect = document.getElementById('chapter-jump');
-
-    chapterJumpSelect?.addEventListener('change', async function () {
-        const targetPage = parseInt(this.value);
-
-        if (!isNaN(targetPage) && pdfDoc) {
-            // Langsung ubah currentPageNum
-            currentPageNum = targetPage;
-
-            // Render halaman bab secara langsung tanpa perlu zoom trigger
-            try {
-                const page = await pdfDoc.getPage(currentPageNum);
-                const viewport = page.getViewport({ scale: scale });
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-
-                // Update tampilan info halaman
-                pageNumDisplay.textContent = currentPageNum;
-                zoomLevel.textContent = Math.round(scale * 100) + '%';
-
-                // Scroll ke atas biar fokus ke halaman baru
-                document.getElementById('pdf-render-container').scrollTo({ top: 0, behavior: 'smooth' });
-            } catch (err) {
-                console.error('[PDF] Gagal render halaman bab:', err);
-            }
-        }
-    });
-
-
-
     </script>
     @endpush
 </x-app-layout>
