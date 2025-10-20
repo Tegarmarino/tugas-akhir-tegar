@@ -16,17 +16,61 @@
                 <div class="w-full h-[60%] lg:h-auto lg:w-[60%] flex flex-col bg-gray-200 dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
                     {{-- Toolbar --}}
                     <div class="p-2 bg-gray-100 dark:bg-gray-700 flex items-center justify-between border-b dark:border-gray-600">
-                        <div class="flex items-center">
-                            <button id="prev-page" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">Prev</button>
-                            <span class="mx-2 text-gray-700 dark:text-gray-300 text-sm">Halaman: <span id="page-num">1</span> / <span id="page-count">?</span></span>
-                            <button id="next-page" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">Next</button>
+                        {{-- Navigasi Halaman --}}
+                        <div class="flex items-center space-x-2">
+                            <button id="prev-page"
+                                class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">Prev</button>
+                            <span class="text-gray-700 dark:text-gray-300 text-sm">
+                                Halaman: <span id="page-num">1</span> / <span id="page-count">?</span>
+                            </span>
+                            <button id="next-page"
+                                class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">Next</button>
                         </div>
-                        <div class="flex items-center">
-                            <button id="zoom-out-btn" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">-</button>
-                            <span id="zoom-level" class="text-sm text-gray-700 dark:text-gray-300 mx-2">150%</span>
-                            <button id="zoom-in-btn" class="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600">+</button>
+
+                        {{-- Dropdown Aksi --}}
+                        <div x-data="{ open: false }" class="relative">
+                            <button @click="open = !open"
+                                class="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm flex items-center">
+                                ⚙️ Aksi
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="w-4 h-4 ml-1">
+                                    <path fill-rule="evenodd"
+                                        d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </button>
+
+                            {{-- Isi Dropdown --}}
+                            <div x-show="open" @click.outside="open = false" x-transition
+                                class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-md shadow-lg z-20 p-4 border dark:border-gray-600 space-y-3">
+
+                                {{-- Zoom Controls --}}
+                                <div class="border-b pb-3 dark:border-gray-600">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">🔍 Zoom</label>
+                                    <div class="flex justify-center items-center space-x-3">
+                                        <button id="zoom-out-btn" class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">-</button>
+                                        <span id="zoom-level" class="text-sm text-gray-700 dark:text-gray-300 w-12 text-center">150%</span>
+                                        <button id="zoom-in-btn" class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">+</button>
+                                    </div>
+                                </div>
+
+                                {{-- Lompat Bab --}}
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📖 Lompat ke Bab</label>
+                                    <select id="chapter-jump"
+                                        class="w-full text-sm border-gray-300 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                        <option value="">-- Pilih Bab --</option>
+                                        @foreach ($book->chapters->sortBy('start_page') as $chapter)
+                                            <option value="{{ $chapter->start_page }}">
+                                                {{ $chapter->title }} (hal {{ $chapter->start_page }}–{{ $chapter->end_page }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                            </div>
                         </div>
                     </div>
+
 
                     {{-- PDF Render --}}
                     <div id="pdf-render-container" class="overflow-auto relative flex-grow bg-gray-300 dark:bg-gray-700 rounded-b-lg">
@@ -129,6 +173,16 @@
             padding: 0.25rem;
             font-style: italic;
         }
+
+        #chapter-jump option {
+            background-color: #fff;
+            color: #111827;
+        }
+        .dark #chapter-jump option {
+            background-color: #1f2937;
+            color: #e5e7eb;
+        }
+
         </style>
         @endpush
 
@@ -259,6 +313,39 @@
             sendChapterBtn.disabled = false;
         }
     });
+
+    // ===== LOMPAT KE BAB =====
+    const chapterJumpSelect = document.getElementById('chapter-jump');
+
+    chapterJumpSelect?.addEventListener('change', async function () {
+        const targetPage = parseInt(this.value);
+
+        if (!isNaN(targetPage) && pdfDoc) {
+            // Langsung ubah currentPageNum
+            currentPageNum = targetPage;
+
+            // Render halaman bab secara langsung tanpa perlu zoom trigger
+            try {
+                const page = await pdfDoc.getPage(currentPageNum);
+                const viewport = page.getViewport({ scale: scale });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                // Update tampilan info halaman
+                pageNumDisplay.textContent = currentPageNum;
+                zoomLevel.textContent = Math.round(scale * 100) + '%';
+
+                // Scroll ke atas biar fokus ke halaman baru
+                document.getElementById('pdf-render-container').scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (err) {
+                console.error('[PDF] Gagal render halaman bab:', err);
+            }
+        }
+    });
+
+
+
     </script>
     @endpush
 </x-app-layout>
