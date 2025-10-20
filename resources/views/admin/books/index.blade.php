@@ -33,26 +33,19 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Cover
-                                        </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Judul
-                                        </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Penulis
-                                        </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Tgl Terbit
-                                        </th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Aksi
-                                        </th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cover</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Judul</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Penulis</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tgl Terbit</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-center">Halaman</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                                     </tr>
                                 </thead>
+
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @foreach ($books as $book)
                                         <tr>
+                                            {{-- Cover --}}
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 @if($book->cover_image_path)
                                                     <img src="{{ Storage::url($book->cover_image_path) }}" alt="{{ $book->title }}" class="h-16 w-auto object-cover rounded">
@@ -60,23 +53,34 @@
                                                     <div class="h-16 w-12 bg-gray-200 flex items-center justify-center rounded text-xs text-gray-500">No Cover</div>
                                                 @endif
                                             </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-sm font-medium text-gray-900">{{ $book->title }}</div>
+
+                                            {{-- Judul --}}
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {{ $book->title }}
                                             </td>
+
+                                            {{-- Penulis --}}
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {{ $book->author ?? '-' }}
                                             </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {{ $book->publication_date ? $book->publication_date->format('d M Y') : '-' }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <a href="{{ route('admin.tests.pre.show', $book->id) }}"
-                                                    class="text-indigo-600 hover:underline">
-                                                    Pre-Test
-                                                </a>
 
-                                                <a href="{{ route('admin.books.edit', $book) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</a>
-                                                <form action="{{ route('admin.books.destroy', $book) }}" method="POST" class="inline-block" onsubmit="return confirm('Apakah Anda yakin ingin menghapus buku ini: {{ addslashes($book->title) }}?');">
+                                            {{-- Tanggal Terbit --}}
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $book->publication_date ? \Carbon\Carbon::parse($book->publication_date)->format('d M Y') : '-' }}
+                                            </td>
+
+                                            {{-- Total Halaman --}}
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-700 font-semibold">
+                                                {{ $book->total_pages ?? '-' }}
+                                            </td>
+
+                                            {{-- Aksi --}}
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <a href="{{ route('admin.tests.pre.show', $book->id) }}" class="text-indigo-600 hover:underline mr-2">Pre-Test</a>
+                                                <a href="{{ route('admin.tests.post.show', $book->id) }}" class="text-indigo-600 hover:underline mr-2">Post-Test</a>
+                                                <a href="{{ route('admin.books.edit', $book) }}" class="text-indigo-600 hover:text-indigo-900 mr-2">Edit</a>
+                                                <form action="{{ route('admin.books.destroy', $book) }}" method="POST" class="inline-block"
+                                                    onsubmit="return confirm('Apakah Anda yakin ingin menghapus buku ini: {{ addslashes($book->title) }}?');">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="text-red-600 hover:text-red-900">Hapus</button>
@@ -85,6 +89,7 @@
                                         </tr>
                                     @endforeach
                                 </tbody>
+
                             </table>
                         </div>
                         <div class="mt-6">

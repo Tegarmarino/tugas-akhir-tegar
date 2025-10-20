@@ -18,6 +18,7 @@ class Book extends Model
         'overview',
         'file_path',
         'cover_image_path',
+        'total_pages',
     ];
 
     protected $casts = [

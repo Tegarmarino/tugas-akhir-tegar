@@ -130,6 +130,65 @@ class ReadingController extends Controller
         }
     }
 
+
+    public function chatWithChapterAI(Request $request, Book $book, \App\Models\Chapter $chapter)
+    {
+        $request->validate(['question' => 'required|string|max:1000']);
+        $userQuestion = $request->input('question');
+
+        \Log::info("[ChatAI-CHAPTER] Book: {$book->title}, Chapter: {$chapter->title}, Q: {$userQuestion}");
+
+        $absolutePdfPath = storage_path('app/public/' . $book->file_path);
+        if (!Storage::disk('public')->exists($book->file_path)) {
+            return response()->json(['reply' => 'File buku tidak ditemukan.'], 404);
+        }
+
+        try {
+            $pdf = new \setasign\Fpdi\Fpdi();
+            $pageCount = $pdf->setSourceFile($absolutePdfPath);
+
+            $start = $chapter->start_page;
+            $end = min($chapter->end_page, $pageCount);
+
+            $pdf->AddPage();
+            for ($i = $start; $i <= $end; $i++) {
+                $tplId = $pdf->importPage($i);
+                $size = $pdf->getTemplateSize($tplId);
+                $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                $pdf->useTemplate($tplId);
+            }
+
+            $chapterPdf = $pdf->Output('S');
+            $pdfData = [
+                'mime_type' => 'application/pdf',
+                'data' => base64_encode($chapterPdf)
+            ];
+        } catch (\Exception $e) {
+            \Log::error("[ChatAI-CHAPTER] Error: " . $e->getMessage());
+            return response()->json(['reply' => 'Terjadi kesalahan saat membaca bab.'], 500);
+        }
+
+        $prompt = "
+            Anda adalah asisten AI untuk membaca buku akademik.
+            Buku: '{$book->title}'.
+            Bab: '{$chapter->title}' (halaman {$start}–{$end}).
+            Pertanyaan pengguna: \"{$userQuestion}\".
+            Jawab dengan bahasa akademik, berdasarkan isi bab PDF yang diberikan.
+            Jika topik tidak dibahas dalam bab ini, nyatakan dengan sopan bahwa topik tersebut tidak ditemukan.
+        ";
+
+        try {
+            $aiResponse = $this->geminiService->getChatResponseFromPdf($prompt, $pdfData);
+            return response()->json(['reply' => $aiResponse]);
+        } catch (\Exception $e) {
+            \Log::error("[ChatAI-CHAPTER] AI error: " . $e->getMessage());
+            return response()->json(['reply' => 'Terjadi kesalahan AI.'], 500);
+        }
+    }
+
+
+
+
     public function defineHighlightedText(Request $request, Book $book)
     {
         $request->validate(['text' => 'required|string|max:255']);
@@ -138,4 +197,21 @@ class ReadingController extends Controller
         $aiResponse = $this->geminiService->getChatResponse($prompt);
         return response()->json(['definition' => $aiResponse]);
     }
+
+    public function resetProgress(Book $book)
+    {
+        $user = auth()->user();
+
+        // Hapus progres baca
+        $book->readingProgress()->where('user_id', $user->id)->delete();
+
+        // Hapus hasil tes pre & post
+        \App\Models\Result::where('user_id', $user->id)
+            ->whereIn('test_id', $book->tests->pluck('id'))
+            ->delete();
+
+        return redirect()->route('books.show', $book->id)
+            ->with('success', 'Progres membaca dan hasil tes berhasil direset.');
+    }
+
 }

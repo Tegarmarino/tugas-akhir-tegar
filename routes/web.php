@@ -11,7 +11,7 @@ use App\Http\Controllers\ReadingController;
 use App\Http\Controllers\BookmarkController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Controllers\QuizController;
-use App\Http\Controllers\Admin\QuestionController;
+use App\Http\Controllers\Admin\AdminQuestionController;
 use App\Http\Controllers\Admin\AdminChapterController;
 use App\Http\Controllers\Admin\AdminTestController;
 
@@ -48,12 +48,24 @@ Route::middleware('auth')->group(function () {
 
     // TAMBAHKAN ROUTE INI UNTUK MENYIMPAN PROGRES
     Route::patch('/books/{book}/progress', [ReadingController::class, 'updateProgress'])->name('books.progress.update');
+
+    Route::delete('/books/{book}/progress/reset', [\App\Http\Controllers\ReadingController::class, 'resetProgress'])
+    ->name('books.progress.reset')
+    ->middleware('auth');
+
+    Route::post('/books/{book}/chapters/{chapter}/chat', [ReadingController::class, 'chatWithChapterAI'])
+    ->name('books.chapters.chat');
+
+
 });
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     Route::resource('books', AdminBookController::class);
-    Route::resource('questions', QuestionController::class);
+    Route::resource('questions', AdminQuestionController::class);
+    Route::delete('/admin/questions/bulk-delete', [AdminQuestionController::class, 'bulkDelete'])
+    ->name('questions.bulk-delete');
+
     // Rute admin lainnya
     // ✅ Tambahkan routes chapters di sini
     Route::get('/books/{book}/chapters', [AdminChapterController::class, 'index'])->name('chapters.index');
@@ -65,10 +77,16 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('books/{book}/assign-pretest', [AdminTestController::class, 'createPreTest'])->name('tests.pre.create');
     Route::post('books/{book}/assign-pretest', [AdminTestController::class, 'storePreTest'])->name('tests.pre.store');
 
+   // routes/web.php
     Route::get('books/{book}/pretest', [AdminTestController::class, 'showPreTest'])->name('tests.pre.show');
-    Route::get('books/{book}/pretest/edit', [AdminTestController::class, 'editPreTest'])->name('tests.pre.edit');
-    Route::post('books/{book}/pretest/update', [AdminTestController::class, 'updatePreTest'])->name('tests.pre.update');
+    Route::post('books/{book}/pretest', [AdminTestController::class, 'savePreTest'])->name('tests.pre.save');
 
+
+
+    // Post-test per bab/sub-bab
+    Route::get('books/{book}/posttest', [AdminTestController::class, 'showPostTest'])->name('tests.post.show');
+    Route::post('books/{book}/posttest', [AdminTestController::class, 'storePostTest'])->name('tests.post.store');
+    Route::post('books/{book}/posttest/update', [AdminTestController::class, 'updatePostTest'])->name('tests.post.update');
 
 });
 

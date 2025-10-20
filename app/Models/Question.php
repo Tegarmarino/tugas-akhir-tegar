@@ -19,9 +19,16 @@ class Question extends Model
         'tag',
     ];
 
-    // Relasi ke TestQuestion (nanti saat assign test)
-    // public function testQuestions()
-    // {
-    //     return $this->hasMany(TestQuestion::class);
-    // }
+    // Accessor untuk menghasilkan array "options" dari kolom a-d
+    protected $appends = ['options'];
+
+    public function getOptionsAttribute()
+    {
+        return [
+            'a' => $this->option_a,
+            'b' => $this->option_b,
+            'c' => $this->option_c,
+            'd' => $this->option_d,
+        ];
+    }
 }
