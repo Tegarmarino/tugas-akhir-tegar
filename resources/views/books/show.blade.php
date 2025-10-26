@@ -132,6 +132,13 @@
                                 ->where('test_id', $chapterTest->id)
                                 ->first()
                             : null;
+
+                        // ✅ Hitung jumlah attempt (berapa kali user mengerjakan test ini)
+                        $attemptCount = $chapterTest
+                            ? \App\Models\UserQuizAttempt::where('user_id', auth()->id())
+                                ->where('test_id', $chapterTest->id)
+                                ->count()
+                            : 0;
                     @endphp
 
                     <div class="border border-gray-100 bg-gray-50 rounded-md p-3 mb-3 flex justify-between items-start text-sm">
@@ -147,16 +154,22 @@
                         @elseif ($result && $result->score >= 80)
                             <span class="text-green-600 font-semibold whitespace-nowrap">
                                 ✅ Lulus (Nilai: {{ $result->score }})
+                                <span class="block text-xs text-gray-500">({{ $attemptCount }}x attempt)</span>
                             </span>
                         @elseif ($result)
                             <span class="text-red-500 font-semibold whitespace-nowrap">
                                 ❌ Belum Lulus (Nilai: {{ $result->score }})
+                                <span class="block text-xs text-gray-500">({{ $attemptCount }}x attempt)</span>
                             </span>
                         @else
-                            <span class="text-gray-500 italic">Belum dikerjakan</span>
+                            <span class="text-gray-500 italic">
+                                Belum dikerjakan
+                                <span class="block text-xs text-gray-400">({{ $attemptCount }}x attempt)</span>
+                            </span>
                         @endif
                     </div>
                 @endforeach
+
 
             </div>
 

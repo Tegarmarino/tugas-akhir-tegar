@@ -39,17 +39,20 @@
                                 </svg>
                             </button>
 
-                            {{-- Isi Dropdown --}}
+                            {{-- Isi Dropdown (Aksi Saja) --}}
                             <div x-show="open" @click.outside="open = false" x-transition
-                                class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-md shadow-lg z-20 p-4 border dark:border-gray-600 space-y-3">
+                                class="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-md shadow-lg z-20 p-4 border dark:border-gray-600 space-y-4">
 
                                 {{-- Zoom Controls --}}
                                 <div class="border-b pb-3 dark:border-gray-600">
                                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">🔍 Zoom</label>
                                     <div class="flex justify-center items-center space-x-3">
-                                        <button id="zoom-out-btn" class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">-</button>
-                                        <span id="zoom-level" class="text-sm text-gray-700 dark:text-gray-300 w-12 text-center">150%</span>
-                                        <button id="zoom-in-btn" class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">+</button>
+                                        <button id="zoom-out-btn"
+                                            class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">-</button>
+                                        <span id="zoom-level"
+                                            class="text-sm text-gray-700 dark:text-gray-300 w-12 text-center">150%</span>
+                                        <button id="zoom-in-btn"
+                                            class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">+</button>
                                     </div>
                                 </div>
 
@@ -68,101 +71,73 @@
                                 </div>
 
                                 {{-- ===========================
-                                    PROGRESS & POST-TEST STATUS
+                                    POST-TEST STATUS & AKSI
                                 =========================== --}}
-                                <div class="border-t pt-3 dark:border-gray-600 mt-3">
+                                <div class="border-t pt-3 dark:border-gray-600">
                                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        📊 Progres Belajar
+                                        🧪 Post-Test Bab
                                     </label>
 
-                                    @php
-                                        $progressPercent = 0;
-                                        if ($book->total_pages && $progress->last_page_number) {
-                                            $progressPercent = min(100, round(($progress->last_page_number / $book->total_pages) * 100));
-                                        }
+                                    @foreach ($book->chapters->sortBy('start_page') as $chapter)
+                                        @php
+                                            $chapterTest = $book->tests()
+                                                ->where('type', 'post')
+                                                ->where('chapter_id', $chapter->id)
+                                                ->first();
 
-                                        $currentChapter = $book->chapters
-                                            ->first(fn($c) => $progress->last_page_number >= $c->start_page && $progress->last_page_number <= $c->end_page);
-                                    @endphp
+                                            $result = $chapterTest
+                                                ? \App\Models\Result::where('user_id', auth()->id())
+                                                    ->where('test_id', $chapterTest->id)
+                                                    ->first()
+                                                : null;
+                                        @endphp
 
-                                    {{-- Bar Progres --}}
-                                    <div class="mb-3">
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                                            📖 Halaman: <span id="progress-page">{{ $progress->last_page_number ?? 1 }}</span> / {{ $book->total_pages ?? '?' }}
-                                        </p>
-                                        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mt-1">
-                                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: {{ $progressPercent }}%"></div>
-                                        </div>
-                                        <p class="text-xs text-gray-500 mt-1" id="progress-text">Progres Baca: {{ $progressPercent }}%</p>
-                                    </div>
-
-                                    {{-- Bab Aktif --}}
-                                    <div class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-2 mb-3">
-                                        <p class="text-xs text-gray-700 dark:text-gray-300">
-                                            📍 Sedang membaca
-                                            <strong>{{ $currentChapter->title ?? 'Belum ada bab aktif' }}</strong>
-                                        </p>
-                                    </div>
-
-                                    {{-- Daftar Post-Test --}}
-                                    <div class="text-xs text-gray-700 dark:text-gray-300 mt-3 border-t border-gray-200 dark:border-gray-700 pt-2 space-y-2">
-                                        <p class="text-sm font-semibold mb-1">📖 Post-Test Bab:</p>
-
-                                        @foreach ($book->chapters->sortBy('start_page') as $chapter)
-                                            @php
-                                                $chapterTest = $book->tests()
-                                                    ->where('type', 'post')
-                                                    ->where('chapter_id', $chapter->id)
-                                                    ->first();
-
-                                                $result = $chapterTest
-                                                    ? \App\Models\Result::where('user_id', auth()->id())
-                                                        ->where('test_id', $chapterTest->id)
-                                                        ->first()
-                                                    : null;
-                                            @endphp
-
-                                            <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-2">
-                                                <div class="flex items-center gap-2">
-                                                    @if (!$chapterTest)
-                                                        <span class="text-gray-400 font-bold text-lg leading-none">–</span>
-                                                        <span>{{ $chapter->title }} <span class="text-gray-500 italic">(Belum ada test)</span></span>
-                                                    @elseif ($result && $result->score >= 80)
-                                                        <span class="text-green-600 font-bold text-lg leading-none">✅</span>
-                                                        <span>{{ $chapter->title }} <span class="text-green-600 font-semibold">(Lulus — {{ $result->score }})</span></span>
-                                                    @elseif ($result)
-                                                        <span class="text-yellow-500 font-bold text-lg leading-none">⚠️</span>
-                                                        <span>{{ $chapter->title }} <span class="text-red-600 font-semibold">(Belum Lulus — {{ $result->score }})</span></span>
-                                                    @else
-                                                        <span class="text-red-500 font-bold text-lg leading-none">❌</span>
-                                                        <span>{{ $chapter->title }} <span class="text-gray-500 italic">(Belum Dikerjakan)</span></span>
-                                                    @endif
-                                                </div>
-
-                                                {{-- Tombol Aksi --}}
-                                                @if ($chapterTest)
-                                                    @if (!$result)
-                                                        {{-- Belum pernah tes --}}
-                                                        <a href="{{ route('quiz.show', $chapterTest->id) }}"
-                                                            class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-md transition">
-                                                            Kerjakan
-                                                        </a>
-                                                    @elseif ($result->score < 80)
-                                                        {{-- Gagal, boleh ulang --}}
-                                                        <a href="{{ route('quiz.show', $chapterTest->id) }}"
-                                                            class="px-2 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs rounded-md transition">
-                                                            Ulangi Tes
-                                                        </a>
-                                                    @endif
+                                        <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-2 mb-2">
+                                            <div class="flex items-center gap-2">
+                                                @if (!$chapterTest)
+                                                    <span class="text-gray-400 font-bold text-lg leading-none">–</span>
+                                                    <span class="text-gray-500 text-xs italic">Belum ada test</span>
+                                                @elseif ($result && $result->score >= 80)
+                                                    <span class="text-green-600 font-bold text-lg leading-none">✅</span>
+                                                    <span class="text-green-700 text-xs">Lulus</span>
+                                                @elseif ($result)
+                                                    <span class="text-yellow-500 font-bold text-lg leading-none">⚠️</span>
+                                                    <span class="text-red-600 text-xs">Belum Lulus</span>
+                                                @else
+                                                    <span class="text-red-500 font-bold text-lg leading-none">❌</span>
+                                                    <span class="text-gray-500 text-xs">Belum Dikerjakan</span>
                                                 @endif
                                             </div>
-                                        @endforeach
-                                    </div>
 
+                                            {{-- Tombol --}}
+                                            @if ($chapterTest)
+                                                @if (!$result)
+                                                    <a href="{{ route('quiz.show', $chapterTest->id) }}"
+                                                    class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-md transition">
+                                                        Kerjakan
+                                                    </a>
+                                                @elseif ($result->score < 80)
+                                                    <a href="{{ route('quiz.show', $chapterTest->id) }}"
+                                                    class="px-2 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs rounded-md transition">
+                                                        Ulangi
+                                                    </a>
+                                                @endif
+                                            @endif
+                                        </div>
+                                    @endforeach
                                 </div>
 
-
+                                {{-- ===========================
+                                    NAVIGASI
+                                =========================== --}}
+                                <div class="border-t pt-3 dark:border-gray-600">
+                                    <a href="{{ route('books.show', $book->id) }}"
+                                        class="block text-center bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 py-2 rounded-md text-sm font-medium transition">
+                                        🔙 Kembali ke Detail Buku
+                                    </a>
+                                </div>
                             </div>
+
                         </div>
                     </div>
 

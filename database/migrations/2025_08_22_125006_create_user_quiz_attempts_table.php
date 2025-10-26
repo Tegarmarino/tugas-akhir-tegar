@@ -14,12 +14,13 @@ return new class extends Migration
         Schema::create('user_quiz_attempts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('quiz_id')->constrained()->onDelete('cascade');
+            $table->foreignId('quiz_id')->constrained('tests')->onDelete('cascade'); // ✅ ubah ke tests
             $table->enum('type', ['pre-test', 'post-test']);
             $table->unsignedInteger('score')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
         });
+
     }
 
     /**
