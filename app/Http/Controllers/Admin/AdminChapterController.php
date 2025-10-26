@@ -12,7 +12,7 @@ class AdminChapterController extends Controller
     // Tampilkan daftar bab per buku
     public function index(Book $book)
     {
-        $chapters = $book->chapters()->orderBy('start_page')->get();
+        $chapters = $book->chapters()->orderBy('start_page', 'asc')->get();
         return view('admin.chapters.index', compact('book', 'chapters'));
     }
 
@@ -26,17 +26,20 @@ class AdminChapterController extends Controller
             'chapters.*.end_page' => 'required|integer|gte:chapters.*.start_page',
         ]);
 
-        $existingChapters = $book->chapters()->get();
-        $newChapters = collect($validated['chapters'])->map(fn($c) => (object)$c)->values(); // ubah ke objek
+        $existingChapters = $book->chapters()->orderBy('id')->get();
+        $newChapters = collect($validated['chapters'])->map(fn($c) => (object)$c)->values();
         $errors = [];
         $validChapters = [];
 
-        // ✅ 1. Cek antar bab baru (batch)
+        // ✅ Ambil nomor bab terakhir
+        $nextNumber = $existingChapters->count() + 1;
+
+        // ✅ 1. Cek antar bab baru (tumpang tindih)
         foreach ($newChapters as $i => $chapterA) {
             foreach ($newChapters as $j => $chapterB) {
                 if ($i !== $j) {
                     if (!($chapterA->end_page < $chapterB->start_page || $chapterA->start_page > $chapterB->end_page)) {
-                        $errors[] = "Bab dengan halaman {$chapterA->start_page}-{$chapterA->end_page} tumpang tindih dengan bab {$chapterB->start_page}-{$chapterB->end_page} yang juga baru ditambahkan.";
+                        $errors[] = "Bab {$chapterA->start_page}-{$chapterA->end_page} tumpang tindih dengan bab {$chapterB->start_page}-{$chapterB->end_page}.";
                         $chapterA->invalid = true;
                         $chapterB->invalid = true;
                     }
@@ -59,20 +62,22 @@ class AdminChapterController extends Controller
             }
         }
 
-        // ✅ 3. Simpan hanya yang valid
+        // ✅ 3. Simpan hanya yang valid dan beri nomor otomatis
         foreach ($newChapters as $chapter) {
             if (empty($chapter->invalid)) {
+                $numberedTitle = "Bab {$nextNumber}: {$chapter->title}";
                 Chapter::create([
                     'book_id' => $book->id,
-                    'title' => $chapter->title,
+                    'title' => $numberedTitle,
                     'start_page' => $chapter->start_page,
                     'end_page' => $chapter->end_page,
                 ]);
-                $validChapters[] = "{$chapter->start_page}-{$chapter->end_page}";
+                $validChapters[] = $numberedTitle;
+                $nextNumber++;
             }
         }
 
-        // ✅ 4. Tentukan notifikasi hasil
+        // ✅ 4. Pesan hasil
         if (count($errors) > 0 && count($validChapters) > 0) {
             return redirect()->route('admin.chapters.index', $book->id)
                 ->with('warning', 'Sebagian bab berhasil disimpan, sebagian lainnya tumpang tindih.')
@@ -82,13 +87,8 @@ class AdminChapterController extends Controller
         }
 
         return redirect()->route('admin.chapters.index', $book->id)
-            ->with('success', 'Semua bab/sub-bab berhasil ditambahkan.');
+            ->with('success', 'Semua bab/sub-bab berhasil ditambahkan dengan penomoran otomatis.');
     }
-
-
-
-
-
 
 
     public function edit(Book $book, Chapter $chapter)
@@ -96,6 +96,7 @@ class AdminChapterController extends Controller
         return view('admin.chapters.edit', compact('book', 'chapter'));
     }
 
+    // 🧩 Update Bab
     public function update(Request $request, Book $book, Chapter $chapter)
     {
         $validated = $request->validate([
@@ -107,7 +108,6 @@ class AdminChapterController extends Controller
         $start = $validated['start_page'];
         $end = $validated['end_page'];
 
-        // ✅ Ambil bab lain dari buku yang sama (kecuali bab ini)
         $existingChapters = $book->chapters()->where('id', '!=', $chapter->id)->get();
 
         // ✅ Cek overlap
@@ -121,19 +121,55 @@ class AdminChapterController extends Controller
             ])->withInput();
         }
 
-        $chapter->update($validated);
+        // ✅ Deteksi nomor lama (format Bab X:)
+        preg_match('/^Bab\s*(\d+):\s*(.*)$/', $chapter->title, $matches);
+        $chapterNumber = $matches[1] ?? null;
+
+        if ($chapterNumber) {
+            $newTitle = "Bab {$chapterNumber}: {$validated['title']}";
+        } else {
+            $nextNumber = $book->chapters()->count();
+            $newTitle = "Bab {$nextNumber}: {$validated['title']}";
+        }
+
+        $chapter->update([
+            'title' => $newTitle,
+            'start_page' => $start,
+            'end_page' => $end,
+        ]);
+
+        // ✅ Auto-renumber setelah edit
+        $this->renumberChapters($book);
 
         return redirect()->route('admin.chapters.index', $book->id)
-            ->with('success', 'Bab/Sub-bab berhasil diperbarui.');
+            ->with('success', 'Bab/Sub-bab berhasil diperbarui dan penomoran diperbarui otomatis.');
     }
 
-
-
-    // Hapus bab
+    // 🧩 Hapus Bab
     public function destroy(Book $book, Chapter $chapter)
     {
         $chapter->delete();
+
+        // ✅ Auto-renumber setelah hapus
+        $this->renumberChapters($book);
+
         return redirect()->route('admin.chapters.index', $book->id)
-            ->with('success', 'Bab/Sub-bab berhasil dihapus.');
+            ->with('success', 'Bab/Sub-bab berhasil dihapus dan penomoran diperbarui otomatis.');
     }
+
+    /**
+     * 🔁 Renumber Bab Otomatis Berdasarkan Urutan Halaman
+     */
+    private function renumberChapters(Book $book)
+    {
+        $i = 1;
+        $chapters = $book->chapters()->orderBy('start_page')->get();
+
+        foreach ($chapters as $chapter) {
+            $cleanTitle = preg_replace('/^Bab\s*\d+:\s*/', '', $chapter->title);
+            $chapter->update(['title' => "Bab {$i}: {$cleanTitle}"]);
+            $i++;
+        }
+    }
+
 }

@@ -67,6 +67,87 @@
                                     </select>
                                 </div>
 
+                                {{-- ===========================
+                                    PROGRESS & POST-TEST STATUS
+                                =========================== --}}
+                                <div class="border-t pt-3 dark:border-gray-600 mt-3">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        📊 Progres Belajar
+                                    </label>
+
+                                    @php
+                                        $progressPercent = 0;
+                                        if ($book->total_pages && $progress->last_page_number) {
+                                            $progressPercent = min(100, round(($progress->last_page_number / $book->total_pages) * 100));
+                                        }
+
+                                        $currentChapter = $book->chapters
+                                            ->first(fn($c) => $progress->last_page_number >= $c->start_page && $progress->last_page_number <= $c->end_page);
+                                    @endphp
+
+                                    {{-- Bar Progres --}}
+                                    <div class="mb-3">
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                            📖 Halaman: <span id="progress-page">{{ $progress->last_page_number ?? 1 }}</span> / {{ $book->total_pages ?? '?' }}
+                                        </p>
+                                        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mt-1">
+                                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: {{ $progressPercent }}%"></div>
+                                        </div>
+                                        <p class="text-xs text-gray-500 mt-1" id="progress-text">Progres Baca: {{ $progressPercent }}%</p>
+                                    </div>
+
+                                    {{-- Bab Aktif --}}
+                                    <div class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-2 mb-3">
+                                        <p class="text-xs text-gray-700 dark:text-gray-300">
+                                            📍 Sedang membaca bab
+                                            <strong>{{ $currentChapter->title ?? 'Belum ada bab aktif' }}</strong>
+                                        </p>
+                                    </div>
+
+                                    {{-- Daftar Bab --}}
+                                    <div class="text-xs text-gray-700 dark:text-gray-300 mt-3 border-t border-gray-200 dark:border-gray-700 pt-2 space-y-2">
+                                        <p class="text-sm font-semibold mb-1">📖 Post-Test Bab:</p>
+
+                                        @foreach ($book->chapters->sortBy('start_page') as $chapter)
+                                            @php
+                                                $chapterTest = $book->tests()
+                                                    ->where('type', 'post')
+                                                    ->where('chapter_id', $chapter->id)
+                                                    ->first();
+
+                                                $isRead = $progress->last_page_number >= $chapter->start_page;
+                                                $testDone = $chapterTest
+                                                    ? \App\Models\Result::where('user_id', auth()->id())
+                                                        ->where('test_id', $chapterTest->id)
+                                                        ->exists()
+                                                    : false;
+                                            @endphp
+
+                                            <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-2">
+                                                <div class="flex items-center gap-2">
+                                                    @if ($testDone)
+                                                        <span class="text-green-600 font-bold text-lg leading-none">✅</span>
+                                                    @elseif($chapterTest)
+                                                        <span class="text-red-500 font-bold text-lg leading-none">❌</span>
+                                                    @else
+                                                        <span class="text-gray-400 font-bold text-lg leading-none">–</span>
+                                                    @endif
+
+                                                    <span>{{ $chapter->title }}</span>
+                                                </div>
+
+                                                @if(!$testDone && $chapterTest)
+                                                    <a href="{{ route('quiz.show', $chapterTest->id) }}"
+                                                        class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-md transition">
+                                                        Kerjakan
+                                                    </a>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+
                             </div>
                         </div>
                     </div>
@@ -109,7 +190,7 @@
                             </button>
 
                             <button type="button" id="send-chapter-btn"
-                                class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-all duration-150 ease-in-out">
+                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-all duration-150 ease-in-out">
                                 🔍 Tanya Bab Ini
                             </button>
                         </div>
@@ -521,6 +602,45 @@
             sendChapterBtn.disabled = false;
         }
     });
+
+
+    /* ============================
+    AUTO UPDATE PROGRESS BAR (REALTIME)
+    ============================ */
+    let lastSavedPage = currentPageNum;
+
+    function updateProgressUI(pageNum, totalPages) {
+        const percent = Math.min(100, Math.round((pageNum / totalPages) * 100));
+        document.getElementById('progress-page').textContent = pageNum;
+        document.getElementById('progress-bar').style.width = percent + '%';
+        document.getElementById('progress-text').textContent = `Progres Baca: ${percent}%`;
+    }
+
+    async function syncProgress(page) {
+        if (page === lastSavedPage) return;
+        lastSavedPage = page;
+
+        try {
+            await fetch("{{ route('books.progress.update', $book) }}", {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({ last_page_number: page })
+            });
+            updateProgressUI(page, {{ $book->total_pages ?? 1 }});
+            console.log(`[AutoUpdate] Progress updated: halaman ${page}`);
+        } catch (error) {
+            console.error('[AutoUpdate] Failed to update progress:', error);
+        }
+    }
+
+    // Hook ke navigasi halaman PDF
+    prevPageBtn.addEventListener('click', () => syncProgress(currentPageNum));
+    nextPageBtn.addEventListener('click', () => syncProgress(currentPageNum));
+    chapterJumpSelect?.addEventListener('change', () => syncProgress(currentPageNum));
+
     </script>
     @endpush
 </x-app-layout>

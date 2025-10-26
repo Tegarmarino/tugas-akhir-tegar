@@ -51,10 +51,16 @@ class Book extends Model
         return $this->hasMany(Bookmark::class);
     }
 
+    // public function chapters()
+    // {
+    //     return $this->hasMany(Chapter::class);
+    // }
+
     public function chapters()
     {
-        return $this->hasMany(Chapter::class);
+        return $this->hasMany(Chapter::class)->orderBy('start_page', 'asc');
     }
+
 
     public function tests()
     {

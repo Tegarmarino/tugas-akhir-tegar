@@ -39,10 +39,13 @@ class QuizController extends Controller
             ['score' => $finalScore]
         );
 
-        // Arahkan ke halaman baca buku setelah selesai
+        $message = $quiz->type === 'post'
+            ? "✅ Post-Test selesai! Skor Anda: {$finalScore}"
+            : "✅ Pre-Test selesai! Skor Anda: {$finalScore}";
+
         return redirect()
             ->route('books.read', $quiz->book_id)
-            ->with('success', "✅ Pre-Test selesai! Skor Anda: {$finalScore}");
+            ->with('success', $message);
     }
 
 }

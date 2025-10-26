@@ -8,6 +8,11 @@
     <div class="py-6 max-w-5xl mx-auto sm:px-6 lg:px-8">
         <div class="bg-white shadow-sm sm:rounded-lg p-6 mb-6">
             <h3 class="text-lg font-semibold mb-4">Tambah Bab/Sub-Bab</h3>
+            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                💡 <strong>Catatan:</strong> Anda tidak perlu menambahkan nomor bab secara manual.
+                Sistem akan memberikan nomor urut otomatis berdasarkan urutan bab yang anda tambahkan.
+            </div>
+
             @if ($errors->any())
                 <div class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
                     <strong>Terjadi kesalahan:</strong>

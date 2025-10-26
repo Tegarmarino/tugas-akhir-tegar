@@ -17,6 +17,11 @@
                     </ul>
                 </div>
             @endif
+
+            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                💡 <strong>Catatan:</strong> Anda tidak perlu menambahkan nomor bab secara manual.
+                Sistem akan memberikan nomor urut otomatis berdasarkan urutan bab yang anda tambahkan.
+            </div>
             <form action="{{ route('admin.chapters.update', [$book->id, $chapter->id]) }}" method="POST">
                 @csrf
                 @method('PUT')
