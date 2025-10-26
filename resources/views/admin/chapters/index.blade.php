@@ -10,7 +10,7 @@
             <h3 class="text-lg font-semibold mb-4">Tambah Bab/Sub-Bab</h3>
             <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
                 💡 <strong>Catatan:</strong> Anda tidak perlu menambahkan nomor bab secara manual.
-                Sistem akan memberikan nomor urut otomatis berdasarkan urutan bab yang anda tambahkan.
+                Sistem akan memberikan nomor urut otomatis berdasarkan urutan bab yang anda tambahkan. Halaman bab tidak boleh tumpang tindih.
             </div>
 
             @if ($errors->any())

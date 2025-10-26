@@ -87,7 +87,7 @@
             </div>
 
             {{-- ===========================
-                 CARD: STATUS BELAJAR
+                CARD: STATUS BELAJAR
             ============================ --}}
             <div class="mt-8 bg-white border border-gray-200 shadow-sm sm:rounded-lg p-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-3">📊 Status Belajar Mahasiswa</h3>
@@ -98,7 +98,13 @@
                     untuk mengukur sejauh mana Anda memahami materi setelah membaca.
                 </p>
 
-                {{-- Pre-Test --}}
+                {{-- =========================
+                    PRE-TEST
+                ========================== --}}
+                @php
+                    $preTestExists = isset($preTest) && $preTest !== null;
+                @endphp
+
                 <div class="p-4 mb-4 bg-gray-50 rounded-md border border-gray-100">
                     <div class="flex justify-between items-center">
                         <div>
@@ -107,7 +113,10 @@
                                 Mengukur pemahaman umum Anda terhadap konsep dan topik utama buku sebelum mulai membaca.
                             </p>
                         </div>
-                        @if ($hasPreTestDone)
+
+                        @if (!$preTestExists)
+                            <span class="text-gray-400 italic">Belum tersedia</span>
+                        @elseif ($hasPreTestDone)
                             <span class="text-green-600 font-semibold">
                                 ✅ Selesai (Nilai: {{ $userScore ?? '—' }})
                             </span>
@@ -117,42 +126,57 @@
                     </div>
                 </div>
 
-                {{-- Post-Test per Bab --}}
+                {{-- =========================
+                    POST-TEST PER BAB
+                ========================== --}}
                 <h4 class="text-sm font-semibold text-gray-700 mb-3 mt-6">📖 Post-Test per Bab</h4>
 
-                @foreach ($book->chapters->sortBy('start_page') as $chapter)
-                    @php
-                        $chapterTest = $book->tests()
-                            ->where('type', 'post')
-                            ->where('chapter_id', $chapter->id)
-                            ->first();
+                @php
+                    $hasAnyPostTest = $book->tests()->where('type', 'post')->exists();
+                @endphp
 
-                        $result = $chapterTest
-                            ? \App\Models\Result::where('user_id', auth()->id())
-                                ->where('test_id', $chapterTest->id)
-                                ->first()
-                            : null;
-                    @endphp
-                    <div class="border border-gray-100 bg-gray-50 rounded-md p-3 mb-3 flex justify-between items-start text-sm">
-                        <div>
-                            <strong class="text-gray-800">{{ $chapter->title }}</strong>
-                            <p class="text-xs text-gray-500 mt-1">
-                                Post-test ini mengevaluasi pemahaman Anda terhadap isi dan konsep yang dibahas dalam bab ini.
-                            </p>
-                        </div>
-
-                        @if ($result)
-                            <span class="text-green-600 font-semibold whitespace-nowrap">
-                                ✅ Selesai (Nilai: {{ $result->score ?? '—' }})
-                            </span>
-                        @elseif($chapterTest)
-                            <span class="text-gray-500 italic">Belum dikerjakan</span>
-                        @else
-                            <span class="text-gray-400 italic">Belum tersedia</span>
-                        @endif
+                @if (!$hasAnyPostTest)
+                    <div class="p-4 bg-gray-50 border border-gray-100 rounded-md text-sm text-gray-500 italic">
+                        Belum ada post-test yang dibuat untuk bab-bab di buku ini.
+                        Silakan tunggu hingga dosen atau admin menambahkannya.
                     </div>
-                @endforeach
+                @else
+                    @foreach ($book->chapters->sortBy('start_page') as $chapter)
+                        @php
+                            $chapterTest = $book->tests()
+                                ->where('type', 'post')
+                                ->where('chapter_id', $chapter->id)
+                                ->first();
+
+                            $result = $chapterTest
+                                ? \App\Models\Result::where('user_id', auth()->id())
+                                    ->where('test_id', $chapterTest->id)
+                                    ->first()
+                                : null;
+                        @endphp
+
+                        <div class="border border-gray-100 bg-gray-50 rounded-md p-3 mb-3 flex justify-between items-start text-sm">
+                            <div>
+                                <strong class="text-gray-800">{{ $chapter->title }}</strong>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Post-test ini mengevaluasi pemahaman Anda terhadap isi dan konsep yang dibahas dalam bab ini.
+                                </p>
+                            </div>
+
+                            @if (!$chapterTest)
+                                <span class="text-gray-400 italic">Belum tersedia</span>
+                            @elseif ($result)
+                                <span class="text-green-600 font-semibold whitespace-nowrap">
+                                    ✅ Selesai (Nilai: {{ $result->score ?? '—' }})
+                                </span>
+                            @else
+                                <span class="text-gray-500 italic">Belum dikerjakan</span>
+                            @endif
+                        </div>
+                    @endforeach
+                @endif
             </div>
+
 
         </div>
     </div>

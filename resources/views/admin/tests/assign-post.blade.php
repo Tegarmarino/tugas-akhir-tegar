@@ -61,10 +61,17 @@
                         <input type="hidden" name="tests[{{ $chapter->id }}][chapter_id]" value="{{ $chapter->id }}">
 
                         {{-- Daftar Soal --}}
+                        @php
+                            // Sort pertanyaan: yang sudah dipilih tampil paling atas
+                            $sortedQuestions = $questions->sortByDesc(function($q) use ($selected, $chapter) {
+                                return isset($selected[$chapter->id]) && in_array($q->id, $selected[$chapter->id]);
+                            });
+                        @endphp
+
                         <div class="max-h-[480px] overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100 bg-white" id="chapter-{{ $chapter->id }}">
-                            @foreach ($questions as $question)
+                            @foreach ($sortedQuestions as $question)
                                 <label class="flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50 transition question-item-{{ $chapter->id }}"
-                                       data-tag="{{ strtolower($question->tag) }}">
+                                    data-tag="{{ strtolower($question->tag) }}">
                                     <input
                                         type="checkbox"
                                         name="tests[{{ $chapter->id }}][questions][]"
@@ -79,6 +86,7 @@
                                 </label>
                             @endforeach
                         </div>
+
                     </div>
                 @endforeach
 

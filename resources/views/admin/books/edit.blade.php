@@ -108,18 +108,21 @@
 
                         {{-- Jumlah Halaman --}}
                         <div class="mb-6">
-                            <label for="total_pages" class="block text-sm font-medium text-gray-700">Jumlah Halaman</label>
+                            <label for="total_pages" class="block text-sm font-medium text-gray-700">
+                                Jumlah Halaman
+                            </label>
                             <input type="number" name="total_pages" id="total_pages"
                                 value="{{ old('total_pages', $book->total_pages) }}"
                                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm
-                                        focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
-                                        @error('total_pages') border-red-500 @enderror"
-                                min="1" max="200"
-                                placeholder="Masukkan jumlah halaman (maks 200)">
-                            @error('total_pages')
-                                <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-                            @enderror
+                                        focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-gray-100 text-gray-600 cursor-not-allowed"
+                                readonly disabled>
+
+                            <p class="mt-2 text-xs text-gray-500 italic">
+                                📘 Jumlah halaman terdeteksi otomatis dari file PDF buku yang diunggah.
+                                Anda tidak dapat mengubahnya secara manual.
+                            </p>
                         </div>
+
 
 
                         <div class="flex items-center justify-end space-x-3 mt-6">

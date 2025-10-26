@@ -22,9 +22,24 @@ class AdminChapterController extends Controller
         $validated = $request->validate([
             'chapters' => 'required|array|min:1',
             'chapters.*.title' => 'required|string|max:255',
-            'chapters.*.start_page' => 'required|integer|min:1',
-            'chapters.*.end_page' => 'required|integer|gte:chapters.*.start_page',
+            'chapters.*.start_page' => [
+                'required', 'integer', 'min:1',
+                function ($attribute, $value, $fail) use ($book) {
+                    if ($value > $book->total_pages) {
+                        $fail("Halaman awal ({$value}) tidak boleh melebihi total halaman buku ({$book->total_pages}).");
+                    }
+                },
+            ],
+            'chapters.*.end_page' => [
+                'required', 'integer',
+                function ($attribute, $value, $fail) use ($book, $request) {
+                    if ($value > $book->total_pages) {
+                        $fail("Halaman akhir ({$value}) tidak boleh melebihi total halaman buku ({$book->total_pages}).");
+                    }
+                },
+            ],
         ]);
+
 
         $existingChapters = $book->chapters()->orderBy('id')->get();
         $newChapters = collect($validated['chapters'])->map(fn($c) => (object)$c)->values();
@@ -101,9 +116,24 @@ class AdminChapterController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'start_page' => 'required|integer|min:1',
-            'end_page' => 'required|integer|gte:start_page',
+            'start_page' => [
+                'required', 'integer', 'min:1',
+                function ($attribute, $value, $fail) use ($book) {
+                    if ($value > $book->total_pages) {
+                        $fail("Halaman awal ({$value}) tidak boleh melebihi total halaman buku ({$book->total_pages}).");
+                    }
+                },
+            ],
+            'end_page' => [
+                'required', 'integer', 'gte:start_page',
+                function ($attribute, $value, $fail) use ($book) {
+                    if ($value > $book->total_pages) {
+                        $fail("Halaman akhir ({$value}) tidak boleh melebihi total halaman buku ({$book->total_pages}).");
+                    }
+                },
+            ],
         ]);
+
 
         $start = $validated['start_page'];
         $end = $validated['end_page'];
