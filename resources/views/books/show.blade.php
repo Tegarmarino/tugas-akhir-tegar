@@ -87,7 +87,7 @@
             </div>
 
             {{-- ===========================
-                CARD: STATUS BELAJAR
+                 CARD: STATUS BELAJAR
             ============================ --}}
             <div class="mt-8 bg-white border border-gray-200 shadow-sm sm:rounded-lg p-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-3">📊 Status Belajar Mahasiswa</h3>
@@ -98,13 +98,7 @@
                     untuk mengukur sejauh mana Anda memahami materi setelah membaca.
                 </p>
 
-                {{-- =========================
-                    PRE-TEST
-                ========================== --}}
-                @php
-                    $preTestExists = isset($preTest) && $preTest !== null;
-                @endphp
-
+                {{-- Pre-Test --}}
                 <div class="p-4 mb-4 bg-gray-50 rounded-md border border-gray-100">
                     <div class="flex justify-between items-center">
                         <div>
@@ -113,10 +107,7 @@
                                 Mengukur pemahaman umum Anda terhadap konsep dan topik utama buku sebelum mulai membaca.
                             </p>
                         </div>
-
-                        @if (!$preTestExists)
-                            <span class="text-gray-400 italic">Belum tersedia</span>
-                        @elseif ($hasPreTestDone)
+                        @if ($hasPreTestDone)
                             <span class="text-green-600 font-semibold">
                                 ✅ Selesai (Nilai: {{ $userScore ?? '—' }})
                             </span>
@@ -126,57 +117,48 @@
                     </div>
                 </div>
 
-                {{-- =========================
-                    POST-TEST PER BAB
-                ========================== --}}
+                {{-- Post-Test per Bab --}}
                 <h4 class="text-sm font-semibold text-gray-700 mb-3 mt-6">📖 Post-Test per Bab</h4>
 
-                @php
-                    $hasAnyPostTest = $book->tests()->where('type', 'post')->exists();
-                @endphp
+                @foreach ($book->chapters->sortBy('start_page') as $chapter)
+                    @php
+                        $chapterTest = $book->tests()
+                            ->where('type', 'post')
+                            ->where('chapter_id', $chapter->id)
+                            ->first();
 
-                @if (!$hasAnyPostTest)
-                    <div class="p-4 bg-gray-50 border border-gray-100 rounded-md text-sm text-gray-500 italic">
-                        Belum ada post-test yang dibuat untuk bab-bab di buku ini.
-                        Silakan tunggu hingga dosen atau admin menambahkannya.
-                    </div>
-                @else
-                    @foreach ($book->chapters->sortBy('start_page') as $chapter)
-                        @php
-                            $chapterTest = $book->tests()
-                                ->where('type', 'post')
-                                ->where('chapter_id', $chapter->id)
-                                ->first();
+                        $result = $chapterTest
+                            ? \App\Models\Result::where('user_id', auth()->id())
+                                ->where('test_id', $chapterTest->id)
+                                ->first()
+                            : null;
+                    @endphp
 
-                            $result = $chapterTest
-                                ? \App\Models\Result::where('user_id', auth()->id())
-                                    ->where('test_id', $chapterTest->id)
-                                    ->first()
-                                : null;
-                        @endphp
-
-                        <div class="border border-gray-100 bg-gray-50 rounded-md p-3 mb-3 flex justify-between items-start text-sm">
-                            <div>
-                                <strong class="text-gray-800">{{ $chapter->title }}</strong>
-                                <p class="text-xs text-gray-500 mt-1">
-                                    Post-test ini mengevaluasi pemahaman Anda terhadap isi dan konsep yang dibahas dalam bab ini.
-                                </p>
-                            </div>
-
-                            @if (!$chapterTest)
-                                <span class="text-gray-400 italic">Belum tersedia</span>
-                            @elseif ($result)
-                                <span class="text-green-600 font-semibold whitespace-nowrap">
-                                    ✅ Selesai (Nilai: {{ $result->score ?? '—' }})
-                                </span>
-                            @else
-                                <span class="text-gray-500 italic">Belum dikerjakan</span>
-                            @endif
+                    <div class="border border-gray-100 bg-gray-50 rounded-md p-3 mb-3 flex justify-between items-start text-sm">
+                        <div>
+                            <strong class="text-gray-800">{{ $chapter->title }}</strong>
+                            <p class="text-xs text-gray-500 mt-1">
+                                Post-test ini mengevaluasi pemahaman Anda terhadap isi dan konsep yang dibahas dalam bab ini.
+                            </p>
                         </div>
-                    @endforeach
-                @endif
-            </div>
 
+                        @if (!$chapterTest)
+                            <span class="text-gray-400 italic">Belum tersedia</span>
+                        @elseif ($result && $result->score >= 80)
+                            <span class="text-green-600 font-semibold whitespace-nowrap">
+                                ✅ Lulus (Nilai: {{ $result->score }})
+                            </span>
+                        @elseif ($result)
+                            <span class="text-red-500 font-semibold whitespace-nowrap">
+                                ❌ Belum Lulus (Nilai: {{ $result->score }})
+                            </span>
+                        @else
+                            <span class="text-gray-500 italic">Belum dikerjakan</span>
+                        @endif
+                    </div>
+                @endforeach
+
+            </div>
 
         </div>
     </div>

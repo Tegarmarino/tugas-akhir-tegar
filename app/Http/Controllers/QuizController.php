@@ -34,18 +34,34 @@ class QuizController extends Controller
 
         $finalScore = $total > 0 ? round(($score / $total) * 100, 2) : 0;
 
-        \App\Models\Result::updateOrCreate(
+        // ✅ Simpan hasil (walau gagal, tetap tersimpan agar admin bisa lihat progres)
+        $result = \App\Models\Result::updateOrCreate(
             ['user_id' => $user->id, 'test_id' => $quiz->id],
             ['score' => $finalScore]
         );
 
-        $message = $quiz->type === 'post'
-            ? "✅ Post-Test selesai! Skor Anda: {$finalScore}"
-            : "✅ Pre-Test selesai! Skor Anda: {$finalScore}";
+        // ✅ Logika khusus untuk POST-TEST
+        if ($quiz->type === 'post') {
+            $passingGrade = 80;
 
+            if ($finalScore >= $passingGrade) {
+                // Lulus
+                return redirect()
+                    ->route('books.read', $quiz->book_id)
+                    ->with('success', "🎉 Selamat! Anda lulus Post-Test dengan skor {$finalScore}. Bab ini dianggap selesai.");
+            } else {
+                // Gagal
+                return redirect()
+                    ->route('quiz.show', $quiz->id)
+                    ->with('error', "❌ Anda belum lulus Post-Test. Skor Anda: {$finalScore}. Minimal nilai lulus adalah {$passingGrade}. Silakan coba lagi.");
+            }
+        }
+
+        // ✅ Jika bukan post-test (pre-test)
         return redirect()
             ->route('books.read', $quiz->book_id)
-            ->with('success', $message);
+            ->with('success', "✅ Pre-Test selesai! Skor Anda: {$finalScore}");
     }
+
 
 }

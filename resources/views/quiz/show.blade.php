@@ -6,6 +6,18 @@
     </x-slot>
 
     <div class="py-6 max-w-3xl mx-auto sm:px-6 lg:px-8">
+        {{-- ✅ Alert Hasil Test --}}
+        @if (session('success'))
+            <div class="mb-4 p-4 bg-green-100 text-green-700 rounded-lg font-medium">
+                {{ session('success') }}
+            </div>
+        @endif
+        @if (session('error'))
+            <div class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg font-medium">
+                {{ session('error') }}
+            </div>
+        @endif
+
         <div class="bg-white p-6 shadow-sm sm:rounded-lg">
 
             {{-- Jika belum ada soal sama sekali --}}

@@ -99,12 +99,12 @@
                                     {{-- Bab Aktif --}}
                                     <div class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-2 mb-3">
                                         <p class="text-xs text-gray-700 dark:text-gray-300">
-                                            📍 Sedang membaca bab
+                                            📍 Sedang membaca
                                             <strong>{{ $currentChapter->title ?? 'Belum ada bab aktif' }}</strong>
                                         </p>
                                     </div>
 
-                                    {{-- Daftar Bab --}}
+                                    {{-- Daftar Post-Test --}}
                                     <div class="text-xs text-gray-700 dark:text-gray-300 mt-3 border-t border-gray-200 dark:border-gray-700 pt-2 space-y-2">
                                         <p class="text-sm font-semibold mb-1">📖 Post-Test Bab:</p>
 
@@ -115,36 +115,50 @@
                                                     ->where('chapter_id', $chapter->id)
                                                     ->first();
 
-                                                $isRead = $progress->last_page_number >= $chapter->start_page;
-                                                $testDone = $chapterTest
+                                                $result = $chapterTest
                                                     ? \App\Models\Result::where('user_id', auth()->id())
                                                         ->where('test_id', $chapterTest->id)
-                                                        ->exists()
-                                                    : false;
+                                                        ->first()
+                                                    : null;
                                             @endphp
 
                                             <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-2">
                                                 <div class="flex items-center gap-2">
-                                                    @if ($testDone)
-                                                        <span class="text-green-600 font-bold text-lg leading-none">✅</span>
-                                                    @elseif($chapterTest)
-                                                        <span class="text-red-500 font-bold text-lg leading-none">❌</span>
-                                                    @else
+                                                    @if (!$chapterTest)
                                                         <span class="text-gray-400 font-bold text-lg leading-none">–</span>
+                                                        <span>{{ $chapter->title }} <span class="text-gray-500 italic">(Belum ada test)</span></span>
+                                                    @elseif ($result && $result->score >= 80)
+                                                        <span class="text-green-600 font-bold text-lg leading-none">✅</span>
+                                                        <span>{{ $chapter->title }} <span class="text-green-600 font-semibold">(Lulus — {{ $result->score }})</span></span>
+                                                    @elseif ($result)
+                                                        <span class="text-yellow-500 font-bold text-lg leading-none">⚠️</span>
+                                                        <span>{{ $chapter->title }} <span class="text-red-600 font-semibold">(Belum Lulus — {{ $result->score }})</span></span>
+                                                    @else
+                                                        <span class="text-red-500 font-bold text-lg leading-none">❌</span>
+                                                        <span>{{ $chapter->title }} <span class="text-gray-500 italic">(Belum Dikerjakan)</span></span>
                                                     @endif
-
-                                                    <span>{{ $chapter->title }}</span>
                                                 </div>
 
-                                                @if(!$testDone && $chapterTest)
-                                                    <a href="{{ route('quiz.show', $chapterTest->id) }}"
-                                                        class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-md transition">
-                                                        Kerjakan
-                                                    </a>
+                                                {{-- Tombol Aksi --}}
+                                                @if ($chapterTest)
+                                                    @if (!$result)
+                                                        {{-- Belum pernah tes --}}
+                                                        <a href="{{ route('quiz.show', $chapterTest->id) }}"
+                                                            class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-md transition">
+                                                            Kerjakan
+                                                        </a>
+                                                    @elseif ($result->score < 80)
+                                                        {{-- Gagal, boleh ulang --}}
+                                                        <a href="{{ route('quiz.show', $chapterTest->id) }}"
+                                                            class="px-2 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs rounded-md transition">
+                                                            Ulangi Tes
+                                                        </a>
+                                                    @endif
                                                 @endif
                                             </div>
                                         @endforeach
                                     </div>
+
                                 </div>
 
 
