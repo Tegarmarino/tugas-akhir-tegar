@@ -126,13 +126,13 @@
                             ->where('type', 'post')
                             ->where('chapter_id', $chapter->id)
                             ->first();
-
+                        // ✅ Ambil hasil test user untuk chapter ini
                         $result = $chapterTest
                             ? \App\Models\Result::where('user_id', auth()->id())
                                 ->where('test_id', $chapterTest->id)
                                 ->first()
                             : null;
-.
+
                         // ✅ Hitung jumlah attempt (berapa kali user mengerjakan test ini)
                         $attemptCount = $chapterTest
                             ? \App\Models\UserQuizAttempt::where('user_id', auth()->id())
