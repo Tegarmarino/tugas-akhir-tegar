@@ -204,22 +204,36 @@
     @push('scripts')
         <script>
             const openReadModal = document.getElementById('openReadModal');
-            const readModal = document.getElementById('readModal');
-            if (openReadModal && readModal) {
+
+            // 1. Pastikan tombol "Baca Buku" selalu punya event listener
+            if (openReadModal) {
                 openReadModal.addEventListener('click', () => {
-                    @if($hasPreTestDone)
-                        // Kalau sudah pretest, langsung ke halaman baca
-                        window.location.href = "{{ route('books.read', $book) }}";
+
+                    // 2. Logika dipindah ke dalam klik
+                    // Cek kondisi dari PHP:
+                    // A. Apakah PreTest ada? ($preTest)
+                    // B. Apakah PreTest BELUM dikerjakan? (!$hasPreTestDone)
+                    @if ($preTest && !$hasPreTestDone)
+                        // Jika ADA pre-test DAN BELUM dikerjakan -> Tampilkan Modal
+                        const readModal = document.getElementById('readModal');
+                        if (readModal) {
+                            readModal.classList.remove('hidden');
+                        }
                     @else
-                        // Kalau belum, tampilkan modal pilihan
-                        readModal.classList.remove('hidden');
+                        // Jika TIDAK ADA pre-test, ATAU SUDAH dikerjakan -> Langsung Baca
+                        window.location.href = "{{ route('books.read', $book) }}";
                     @endif
                 });
             }
 
+            // 3. Logika untuk menutup modal (tetap terpisah)
+            const readModal = document.getElementById('readModal');
             if (readModal) {
                 readModal.addEventListener('click', e => {
-                    if (e.target === readModal) readModal.classList.add('hidden');
+                    // Jika user klik area gelap di luar modal
+                    if (e.target === readModal) {
+                        readModal.classList.add('hidden');
+                    }
                 });
             }
         </script>
