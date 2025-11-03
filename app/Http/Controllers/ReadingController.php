@@ -57,6 +57,8 @@ class ReadingController extends Controller
 
     public function chatWithBookAI(Request $request, Book $book)
     {
+        set_time_limit(180); // ✅  INI WAJIB DIPASANG
+
         $request->validate(['question' => 'required|string|max:1000']);
         $userQuestion = $request->input('question');
         $pageNumber = (int) $request->input('page_number', 1);
@@ -133,6 +135,8 @@ class ReadingController extends Controller
 
     public function chatWithChapterAI(Request $request, Book $book, \App\Models\Chapter $chapter)
     {
+        set_time_limit(180); // ✅  INI WAJIB DIPASANG
+
         $request->validate(['question' => 'required|string|max:1000']);
         $userQuestion = $request->input('question');
 

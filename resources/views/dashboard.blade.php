@@ -107,84 +107,12 @@
             </div>
 
             {{-- ===================================
-                 📘 DETAIL PER BUKU
+                 📘 DETAIL PER BUKU (DIHAPUS)
             ==================================== --}}
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">📘 Detail Belajar Anda</h3>
 
-                @forelse($progressData as $item)
-                    @php $book = $item['book']; @endphp
-                    <div class="border border-gray-200 rounded-lg shadow-sm mb-6">
-                        <div class="flex justify-between items-center p-5 border-b bg-gray-50 rounded-t-lg">
-                            <div>
-                                <h4 class="font-semibold text-lg text-gray-800">{{ $book->title }}</h4>
-                                <p class="text-sm text-gray-500">Oleh {{ $book->author ?? 'Penulis tidak diketahui' }}</p>
-                            </div>
-                            <a href="{{ route('books.read', $book->id) }}"
-                               class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">
-                               📖 Lanjutkan Membaca
-                            </a>
-                        </div>
+            {{-- Bagian 'Detail Belajar Anda' (looping $progressData)
+                 sudah dihapus dari sini agar tampilan minimalis --}}
 
-                        <div class="p-5">
-                            <p class="text-sm text-gray-600 mb-1">Progres Membaca</p>
-                            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-3">
-                                <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ $item['pageProgress'] }}%"></div>
-                            </div>
-                            <p class="text-xs text-gray-500 mb-3">
-                                {{ $item['pageProgress'] }}% dari {{ $book->total_pages }} halaman
-                            </p>
-
-                            <h5 class="text-sm font-semibold text-gray-700 mb-2">🧩 Hasil Post-Test</h5>
-                            @forelse ($item['postTests'] as $test)
-                                @php
-                                    $chapter = $book->chapters->firstWhere('id', $test['chapter_id']);
-                                    $chapterTest = $book->tests->firstWhere('chapter_id', $chapter->id ?? null);
-                                    $attemptCount = $chapterTest
-                                        ? \App\Models\UserQuizAttempt::where('user_id', auth()->id())
-                                            ->where('test_id', $chapterTest->id)
-                                            ->count()
-                                        : 0;
-                                @endphp
-
-                                <div class="flex justify-between items-center border border-gray-100 bg-gray-50 rounded-md p-2 mb-2">
-                                    <div class="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                                        <div class="flex items-center gap-2">
-                                            @if($test['status'] === 'Lulus')
-                                                <span class="text-green-600 font-bold text-lg leading-none">✅</span>
-                                            @elseif($test['status'] === 'Belum Lulus')
-                                                <span class="text-yellow-500 font-bold text-lg leading-none">⚠️</span>
-                                            @else
-                                                <span class="text-red-500 font-bold text-lg leading-none">❌</span>
-                                            @endif
-                                            <span class="text-sm text-gray-800">
-                                                {{ $chapter->title ?? 'Bab Tidak Dikenal' }}
-                                                <span class="text-xs text-gray-500">({{ $test['status'] }})</span>
-                                            </span>
-                                        </div>
-
-                                        <p class="text-xs text-gray-500 ml-6 sm:ml-0">
-                                            🧮 {{ $attemptCount }}x attempt
-                                        </p>
-                                    </div>
-
-                                    @if($test['status'] !== 'Lulus')
-                                        <a href="{{ route('quiz.show', $chapterTest->id ?? '#') }}"
-                                        class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-md transition">
-                                        Kerjakan
-                                        </a>
-                                    @endif
-                                </div>
-                            @empty
-                                <p class="text-xs text-gray-500 italic">Belum ada post-test untuk buku ini.</p>
-                            @endforelse
-
-                        </div>
-                    </div>
-                @empty
-                    <p class="text-gray-500 italic text-center">Belum ada data progres belajar.</p>
-                @endforelse
-            </div>
         </div>
     </div>
 
