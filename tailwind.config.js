@@ -1,5 +1,7 @@
 import defaultTheme from 'tailwindcss/defaultTheme';
 import forms from '@tailwindcss/forms';
+import typography from '@tailwindcss/typography'; // ✅ 1. TAMBAHKAN DI SINI
+
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -18,4 +20,5 @@ export default {
     },
 
     plugins: [forms],
+    plugins: [forms, typography], // ✅ 2. TAMBAHKAN DI SINI
 };

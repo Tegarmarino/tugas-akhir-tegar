@@ -6,15 +6,17 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         {{-- Memungkinkan title di-override oleh child view atau menggunakan default --}}
-        <title>{{ $title ?? config('app.name', 'Laravel') }}</title>
+        <title>{{ $title ?? config('app.name', 'Asisten Baca AI') }}</title>
 
+        <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
+        <!-- Scripts (Vite akan otomatis mengurus Tailwind dari app.css) -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-        {{-- Pertimbangkan untuk menghapus ini jika Tailwind CSS sudah bagian dari build Vite Anda --}}
-        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        {{-- ❌ SCRIPT CDN DIHAPUS DARI SINI --}}
+        {{-- <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script> --}}
 
         @stack('styles') {{-- Ditambahkan untuk @push('styles') dari child view --}}
     </head>

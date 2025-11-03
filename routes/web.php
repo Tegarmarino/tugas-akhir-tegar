@@ -14,6 +14,7 @@ use App\Http\Controllers\QuizController;
 use App\Http\Controllers\Admin\AdminQuestionController;
 use App\Http\Controllers\Admin\AdminChapterController;
 use App\Http\Controllers\Admin\AdminTestController;
+use App\Http\Controllers\HelpController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -27,6 +28,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::get('/help-tutorial', [HelpController::class, 'index'])->name('help.index');
 
     Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard'); // Bisa jadi halaman katalog
     Route::get('/books', [BookController::class, 'index'])->name('books.index');
