@@ -65,35 +65,49 @@ class BookController extends Controller
     public function show(Book $book)
     {
         $isFavorited = false;
-        if (Auth::check()) {
-            $isFavorited = Auth::user()->favoriteBooks()->where('book_id', $book->id)->exists();
-        }
+        $hasPreTestDone = false;
+        $userScore = null;
+        $avgPostTestScore = null; // Inisialisasi di sini
 
-        // Cek apakah buku punya pre-test
+        // Cek apakah buku punya pre-test (dibutuhkan untuk UI/Logic)
         $preTest = $book->tests()->where('type', 'pre')->first();
 
+        // Warning jika Pre-Test ada tapi soal kosong
         if ($preTest && $preTest->questions()->count() === 0) {
             session()->flash('error', 'Pre-test belum memiliki soal.');
         }
 
+        if (Auth::check()) {
+            $isFavorited = Auth::user()->favoriteBooks()->where('book_id', $book->id)->exists();
 
+            // 1. Logic Status Pre-Test (Hanya berjalan jika $preTest ada)
+            if ($preTest) {
+                $result = \App\Models\Result::where('user_id', Auth::id())
+                    ->where('test_id', $preTest->id)
+                    ->first();
 
-        // Cek apakah user sudah mengerjakan pre-test
-        $hasPreTestDone = false;
-        $userScore = null;
-
-        if (Auth::check() && $preTest) {
-            $result = \App\Models\Result::where('user_id', Auth::id())
-                ->where('test_id', $preTest->id)
-                ->first();
-
-            if ($result) {
-                $hasPreTestDone = true;
-                $userScore = $result->score;
+                if ($result) {
+                    $hasPreTestDone = true;
+                    $userScore = $result->score;
+                }
             }
-        }
 
-        return view('books.show', compact('book', 'isFavorited', 'hasPreTestDone', 'userScore', 'preTest'));
+            // 2. Logic Rata-rata Nilai Post-Test (Dijalankan jika user login, terlepas dari Pre-Test)
+            $postTestsIds = $book->tests()
+                                ->where('type', 'post')
+                                ->pluck('id');
+
+            if ($postTestsIds->isNotEmpty()) {
+                $avgPostTestScore = \App\Models\Result::where('user_id', Auth::id())
+                                                     ->whereIn('test_id', $postTestsIds)
+                                                     ->avg('score');
+                if ($avgPostTestScore !== null) {
+                    $avgPostTestScore = round($avgPostTestScore, 2);
+                }
+            }
+        } // End of Auth::check() block
+
+        return view('books.show', compact('book', 'isFavorited', 'hasPreTestDone', 'userScore', 'preTest', 'avgPostTestScore'));
     }
 
 

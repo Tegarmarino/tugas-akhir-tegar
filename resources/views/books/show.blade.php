@@ -1,4 +1,3 @@
-{{-- resources/views/books/show.blade.php --}}
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -62,7 +61,6 @@
                                 class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition duration-150 ease-in-out">
                                 📖 Baca Buku
                             </button>
-
                             <form id="favoriteForm" action="{{ route('books.favorite', $book) }}" method="POST">
                                 @csrf
                                 <button type="submit"
@@ -71,7 +69,6 @@
                                     {{ $isFavorited ? 'Hapus dari Favorit' : 'Tambah ke Favorit' }}
                                 </button>
                             </form>
-
                             <form action="{{ route('books.progress.reset', $book->id) }}" method="POST"
                                 onsubmit="return confirm('Yakin reset progres dan hasil tes untuk buku ini?')">
                                 @csrf
@@ -98,6 +95,21 @@
                     untuk mengukur sejauh mana Anda memahami materi setelah membaca.
                 </p>
 
+                {{-- STATISTIK RATA-RATA POST-TEST (NEW) --}}
+                @if ($avgPostTestScore !== null && $avgPostTestScore > 0)
+                    <div class="p-4 mb-4 bg-indigo-50 rounded-md border border-indigo-100 flex justify-between items-center">
+                        <div>
+                            <strong class="text-indigo-800">📈 Rata-rata Nilai Post-Test</strong>
+                            <p class="text-sm text-indigo-700 mt-1">
+                                Rata-rata skor semua Post-Test per bab yang sudah Anda kerjakan.
+                            </p>
+                        </div>
+                        <span class="text-indigo-600 text-3xl font-bold whitespace-nowrap">
+                            {{ $avgPostTestScore }}%
+                        </span>
+                    </div>
+                @endif
+
                 {{-- Pre-Test --}}
                 <div class="p-4 mb-4 bg-gray-50 rounded-md border border-gray-100">
                     <div class="flex justify-between items-center">
@@ -108,7 +120,7 @@
                             </p>
                         </div>
                         @if ($hasPreTestDone)
-                            <span class="text-green-600 font-semibold">
+                            <span class="text-green-600 font-semibold whitespace-nowrap">
                                 ✅ Selesai (Nilai: {{ $userScore ?? '—' }})
                             </span>
                         @else
@@ -126,6 +138,7 @@
                             ->where('type', 'post')
                             ->where('chapter_id', $chapter->id)
                             ->first();
+
                         // ✅ Ambil hasil test user untuk chapter ini
                         $result = $chapterTest
                             ? \App\Models\Result::where('user_id', auth()->id())
@@ -133,7 +146,7 @@
                                 ->first()
                             : null;
 
-                        // ✅ Hitung jumlah attempt (berapa kali user mengerjakan test ini)
+                        // Hitung jumlah attempt (berapa kali user mengerjakan test ini)
                         $attemptCount = $chapterTest
                             ? \App\Models\UserQuizAttempt::where('user_id', auth()->id())
                                 ->where('test_id', $chapterTest->id)
@@ -147,6 +160,9 @@
                             <p class="text-xs text-gray-500 mt-1">
                                 Post-test ini mengevaluasi pemahaman Anda terhadap isi dan konsep yang dibahas dalam bab ini.
                             </p>
+                            <span class="block text-xs text-gray-500 mt-1">
+                                Percobaan: {{ $attemptCount }}x
+                            </span>
                         </div>
 
                         @if (!$chapterTest)
@@ -154,17 +170,14 @@
                         @elseif ($result && $result->score >= 80)
                             <span class="text-green-600 font-semibold whitespace-nowrap">
                                 ✅ Lulus (Nilai: {{ $result->score }})
-                                <span class="block text-xs text-gray-500">({{ $attemptCount }}x attempt)</span>
                             </span>
                         @elseif ($result)
                             <span class="text-red-500 font-semibold whitespace-nowrap">
                                 ❌ Belum Lulus (Nilai: {{ $result->score }})
-                                <span class="block text-xs text-gray-500">({{ $attemptCount }}x attempt)</span>
                             </span>
                         @else
                             <span class="text-gray-500 italic">
                                 Belum dikerjakan
-                                <span class="block text-xs text-gray-400">({{ $attemptCount }}x attempt)</span>
                             </span>
                         @endif
                     </div>
@@ -204,36 +217,22 @@
     @push('scripts')
         <script>
             const openReadModal = document.getElementById('openReadModal');
-
-            // 1. Pastikan tombol "Baca Buku" selalu punya event listener
-            if (openReadModal) {
+            const readModal = document.getElementById('readModal');
+            if (openReadModal && readModal) {
                 openReadModal.addEventListener('click', () => {
-
-                    // 2. Logika dipindah ke dalam klik
-                    // Cek kondisi dari PHP:
-                    // A. Apakah PreTest ada? ($preTest)
-                    // B. Apakah PreTest BELUM dikerjakan? (!$hasPreTestDone)
-                    @if ($preTest && !$hasPreTestDone)
-                        // Jika ADA pre-test DAN BELUM dikerjakan -> Tampilkan Modal
-                        const readModal = document.getElementById('readModal');
-                        if (readModal) {
-                            readModal.classList.remove('hidden');
-                        }
-                    @else
-                        // Jika TIDAK ADA pre-test, ATAU SUDAH dikerjakan -> Langsung Baca
+                    @if($hasPreTestDone)
+                        // Kalau sudah pretest, langsung ke halaman baca
                         window.location.href = "{{ route('books.read', $book) }}";
+                    @else
+                        // Kalau belum, tampilkan modal pilihan
+                        readModal.classList.remove('hidden');
                     @endif
                 });
             }
 
-            // 3. Logika untuk menutup modal (tetap terpisah)
-            const readModal = document.getElementById('readModal');
             if (readModal) {
                 readModal.addEventListener('click', e => {
-                    // Jika user klik area gelap di luar modal
-                    if (e.target === readModal) {
-                        readModal.classList.add('hidden');
-                    }
+                    if (e.target === readModal) readModal.classList.add('hidden');
                 });
             }
         </script>

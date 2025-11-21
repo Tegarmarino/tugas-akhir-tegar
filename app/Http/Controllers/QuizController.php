@@ -16,8 +16,23 @@ class QuizController extends Controller
     // =========================
     public function show(Test $quiz)
     {
-        $quiz->load('questions');
-        return view('quiz.show', ['test' => $quiz]);
+        // === PERBAIKAN DI SINI: EAGER LOAD RELASI BAB ===
+        // Kita eager load questions dan chapter untuk mendapatkan nama bab
+        $quiz->load(['questions', 'chapter']);
+        // ==============================================
+
+        // Tentukan Judul yang akan ditampilkan di halaman kuis
+        $pageTitle = $quiz->title;
+
+        if ($quiz->type === 'post' && $quiz->chapter) {
+            // Jika ini Post-Test dan ada relasi bab, gunakan judul bab
+            $pageTitle = "Post Test: " . $quiz->chapter->title;
+        } elseif ($quiz->type === 'pre') {
+            // Jika Pre-Test, gunakan judul tes standar
+            $pageTitle = "Pre Test: " . $quiz->book->title;
+        }
+
+        return view('quiz.show', ['test' => $quiz, 'pageTitle' => $pageTitle]);
     }
 
     // =========================

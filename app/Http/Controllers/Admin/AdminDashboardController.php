@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Result;
 use App\Models\ReadingProgress;
 use App\Models\UserQuizAttempt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class AdminDashboardController extends Controller
@@ -20,7 +21,7 @@ class AdminDashboardController extends Controller
         $totalBooks = Book::count();
         $totalChapters = Chapter::count();
         $totalTests = Test::count();
-        $totalUsers = User::where('role', 'user')->count(); // hanya mahasiswa/non-admin
+        $totalUsers = User::where('role', 'mahasiswa')->count(); // hanya mahasiswa/non-admin
         $totalResults = Result::count();
 
 
@@ -66,6 +67,17 @@ class AdminDashboardController extends Controller
             ->get()
             ->map(function ($progress) {
                 $user = User::find($progress->user_id);
+
+                // === PERBAIKAN: NULL CHECK MENGGUNAKAN IF ===
+                if (!$user) {
+                     return [
+                        'name' => 'User Terhapus (ID: ' . $progress->user_id . ')', // Memberikan ID agar mudah di-debug
+                        'books' => $progress->total_books,
+                        'last_update' => $progress->last_update,
+                    ];
+                }
+                // ===========================================
+
                 return [
                     'name' => $user->name,
                     'books' => $progress->total_books,
