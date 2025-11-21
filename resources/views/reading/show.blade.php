@@ -72,7 +72,6 @@
 
                                     @foreach ($book->chapters->sortBy('start_page') as $chapter)
                                         @php
-                                            // Asumsi: Anda sudah memasukkan logika ini di BookController@show
                                             $chapterTest = $book->tests()
                                                 ->where('type', 'post')
                                                 ->where('chapter_id', $chapter->id)
@@ -104,15 +103,10 @@
 
                                             {{-- Tombol --}}
                                             @if ($chapterTest)
-                                                @if (!$result)
+                                                @if (!$result || ($result && $result->score < 80))
                                                     <a href="{{ route('quiz.show', $chapterTest->id) }}"
-                                                    class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-md transition">
-                                                        Kerjakan
-                                                    </a>
-                                                @elseif ($result->score < 80)
-                                                    <a href="{{ route('quiz.show', $chapterTest->id) }}"
-                                                    class="px-2 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs rounded-md transition">
-                                                        Ulangi
+                                                    class="px-2 py-1 {{ $result ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-indigo-600 hover:bg-indigo-700' }} text-white text-xs rounded-md transition">
+                                                        {{ $result ? 'Ulangi' : 'Kerjakan' }}
                                                     </a>
                                                 @endif
                                             @endif
@@ -158,7 +152,7 @@
                         <div class="text-center text-gray-400 text-xs italic mt-10">✨ Tanyakan sesuatu tentang halaman atau bab ini...</div>
                     </div>
 
-                    {{-- Quick Prompt Buttons --}}
+                    {{-- Quick Prompt Buttons (RESTORED) --}}
                     <div x-data="{ open: false }" class="mb-3 relative">
                         <button @click="open = !open"
                             class="w-full text-left text-sm text-gray-600 dark:text-gray-400 mb-1 p-2 border border-gray-300 dark:border-gray-700 rounded-lg flex justify-between items-center transition">
@@ -181,7 +175,7 @@
                             class="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-lg mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                             placeholder="Tanyakan sesuatu tentang halaman atau bab ini..."></textarea>
                         <div class="flex gap-2">
-                            <button type="submit" id="send-chat-btn"
+                            <button type="button" id="send-page-btn"
                                 class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-all duration-150 ease-in-out">
                                 💬 Tanya Halaman Ini
                             </button>
@@ -388,7 +382,7 @@
             const chatOutput = document.getElementById('chat-output');
             const chatInput = document.getElementById('chat-input');
             const chatForm = document.getElementById('chat-form');
-            const sendChatBtn = document.getElementById('send-chat-btn');
+            const sendPageBtn = document.getElementById('send-page-btn'); // Renamed to send-page-btn
             const sendChapterBtn = document.getElementById('send-chapter-btn');
             const templateQuestionButtons = document.querySelectorAll('.template-question');
 
@@ -411,7 +405,7 @@
                     }
                 } else {
                     // User message, potentially from template
-                    const prefix = isTemplate ? '❓ ' : '';
+                    const prefix = isTemplate ? '⚡ ' : ''; // Ubah penanda Quick Prompt
                     div.innerHTML = `<span class="font-medium">${prefix}${message}</span>`;
                     chatOutput.appendChild(div);
                 }
@@ -429,75 +423,90 @@
                 return null;
             }
 
+            /* ===== ASYNC FUNCTION: HANDLE CHAT PER BAB/CHAPTER (Shared Handler) ===== */
+            async function handleChapterChat(question, isQuickPrompt = false) {
+                const chapterId = getCurrentChapterId(currentPageNum);
+                if (!chapterId) return addChatMessage("⚠️ Tidak ada bab yang cocok dengan halaman ini.", 'ai');
+
+                addChatMessage(`(Bab) ${question}`, 'user', isQuickPrompt); // Use isQuickPrompt flag for user bubble
+                chatInput.value = '';
+                sendPageBtn.disabled = true;
+                sendChapterBtn.disabled = true;
+
+                try {
+                    const res = await fetch(`/books/${bookId}/chapters/${chapterId}/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                        body: JSON.stringify({ question })
+                    });
+                    const data = await res.json();
+                    addChatMessage(data.reply || 'Tidak ada jawaban AI.', 'ai');
+                } catch (e) {
+                    console.error(e);
+                    addChatMessage('❌ Gagal memuat jawaban bab.', 'ai');
+                } finally {
+                    sendPageBtn.disabled = false;
+                    sendChapterBtn.disabled = false;
+                }
+            }
+
+            /* ===== ASYNC FUNCTION: HANDLE CHAT PER HALAMAN (Shared Handler) ===== */
+            async function handlePageChat(question) {
+                addChatMessage(`(Hal ${currentPageNum}) ${question}`, 'user');
+                chatInput.value = '';
+                sendPageBtn.disabled = true;
+                sendChapterBtn.disabled = true;
+
+                try {
+                    const response = await fetch("{{ route('books.chat', $book) }}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                        body: JSON.stringify({ question, page_number: currentPageNum })
+                    });
+                    const data = await response.json();
+                    addChatMessage(data.reply || 'Tidak ada jawaban AI.', 'ai');
+                } catch (e) {
+                    console.error(e);
+                    addChatMessage('❌ Gagal terhubung ke AI.', 'ai');
+                } finally {
+                    sendPageBtn.disabled = false;
+                    sendChapterBtn.disabled = false;
+                }
+            }
+
+
             /* ===== QUICK PROMPT LISTENER (FIXED: Triggers Chapter Mode) ===== */
             templateQuestionButtons.forEach(button => {
                 button.addEventListener('click', function() {
                     const question = this.dataset.question;
                     chatInput.value = question;
 
-                    // NEW: Immediately trigger the 'Tanya Bab Ini' action
-                    sendChapterBtn.click(); // Trigger the chapter mode click
+                    // Trigger the specific asynchronous function directly
+                    handleChapterChat(question, true);
                 });
             });
 
 
-            /* ===== CHAT SUBMIT LISTENER (Handles Both Modes) ===== */
-            chatForm.addEventListener('submit', async e => {
-                e.preventDefault();
+            /* ===== BUTTON LISTENERS ===== */
+            // 1. Tanya Halaman Ini (Green Button)
+            sendPageBtn.addEventListener('click', (e) => {
                 const question = chatInput.value.trim();
                 if (!question) return;
+                handlePageChat(question);
+            });
 
-                // Determine which button was clicked/submitted
-                const submitter = e.submitter;
+            // 2. Tanya Bab Ini (Blue Button)
+            sendChapterBtn.addEventListener('click', (e) => {
+                const question = chatInput.value.trim();
+                if (!question) return addChatMessage("⚠️ Tulis pertanyaan di kolom chat dulu sebelum kirim.", 'ai');
+                handleChapterChat(question, false);
+            });
 
-                // --- LOGIC: TANYA BAB INI (triggered by Blue Button or Quick Prompt) ---
-                if (submitter && submitter.id === 'send-chapter-btn') {
-                    const chapterId = getCurrentChapterId(currentPageNum);
-                    if (!chapterId) return addChatMessage("⚠️ Tidak ada bab yang cocok dengan halaman ini.", 'ai');
-
-                    addChatMessage(`(Bab) ${question}`, 'user');
-                    chatInput.value = '';
-                    sendChatBtn.disabled = true;
-                    sendChapterBtn.disabled = true;
-
-                    try {
-                        const res = await fetch(`/books/${bookId}/chapters/${chapterId}/chat`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-                            body: JSON.stringify({ question })
-                        });
-                        const data = await res.json();
-                        addChatMessage(data.reply || 'Tidak ada jawaban AI.', 'ai');
-                    } catch (e) {
-                        console.error(e);
-                        addChatMessage('❌ Gagal memuat jawaban bab.', 'ai');
-                    } finally {
-                        sendChatBtn.disabled = false;
-                        sendChapterBtn.disabled = false;
-                    }
-
-                } else {
-                    // --- LOGIC: TANYA HALAMAN INI (triggered by Green Button or Enter/Default) ---
-
-                    addChatMessage(question, 'user');
-                    chatInput.value = '';
-                    sendChatBtn.disabled = true;
-
-                    try {
-                        const response = await fetch("{{ route('books.chat', $book) }}", {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-                            body: JSON.stringify({ question, page_number: currentPageNum })
-                        });
-                        const data = await response.json();
-                        addChatMessage(data.reply || 'Tidak ada jawaban AI.', 'ai');
-                    } catch (e) {
-                        console.error(e);
-                        addChatMessage('❌ Gagal terhubung ke AI.', 'ai');
-                    } finally {
-                        sendChatBtn.disabled = false;
-                    }
-                }
+            /* ===== FORM ENTER LISTENER (Handles Enter Key) ===== */
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                // Default submit action: Tanya Halaman Ini
+                sendPageBtn.click();
             });
 
         </script>
