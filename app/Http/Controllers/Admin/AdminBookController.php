@@ -8,9 +8,8 @@ use App\Services\GeminiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
-use setasign\Fpdi\Fpdi; // PERBAIKAN: Menggunakan library FPDI yang benar
-use Spatie\PdfToText\Pdf as PdfToText; // Untuk mengekstrak seluruh teks (seperti juru tulis)
-use Smalot\PdfParser\Parser; // Untuk menghitung jumlah halaman
+use Smalot\PdfParser\Parser;
+use setasign\Fpdi\Fpdi;
 
 class AdminBookController extends Controller
 {
@@ -34,102 +33,54 @@ class AdminBookController extends Controller
 
     public function store(Request $request)
     {
-        $validatedData = $request->validate([
+        $request->validate([
             'title' => 'required|string|max:255|unique:books,title',
-            'pdf_file' => 'required|file|mimes:pdf|max:30720', // 30MB
+            'pdf_file' => 'required|file|mimes:pdf|max:20480', // 20MB
             'cover_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
-        $bookData = ['title' => $validatedData['title']];
-        $absolutePdfPath = null;
-
         try {
-            // Simpan file PDF dan cover
-            if ($request->hasFile('pdf_file')) {
-                $bookData['file_path'] = $request->file('pdf_file')->store('books/pdfs', 'public');
-                $absolutePdfPath = storage_path('app/public/' . $bookData['file_path']);
-            }
+            $data = ['title' => $request->title];
+
+            // 1. Upload Cover
             if ($request->hasFile('cover_image')) {
-                $bookData['cover_image_path'] = $request->file('cover_image')->store('books/covers', 'public');
+                $data['cover_image_path'] = $request->file('cover_image')->store('books/covers', 'public');
             }
 
-            // 🚫 Validasi jumlah halaman maksimal 200
-            if ($absolutePdfPath) {
-                $parser = new Parser();
-                $pdf = $parser->parseFile($absolutePdfPath);
-                $pageCount = count($pdf->getPages());
+            // 2. Upload & Validasi PDF
+            if ($request->hasFile('pdf_file')) {
+                $path = $request->file('pdf_file')->store('books/pdfs', 'public');
+                $data['file_path'] = $path;
 
+                // Gunakan public_path agar aman di hosting
+                $absolutePath = public_path('storage/' . $path);
+
+                // Cek Halaman (Max 200)
+                $pageCount = $this->countPages($absolutePath);
                 if ($pageCount > 200) {
-                    Storage::disk('public')->delete($bookData['file_path']);
-                    return back()->with('error', "❌ E-book terlalu tebal! Maksimal 200 halaman (Anda mengunggah {$pageCount} halaman).");
+                    Storage::disk('public')->delete($path);
+                    return back()->with('error', "❌ Buku terlalu tebal ({$pageCount} hal). Maksimal 200 halaman.");
                 }
+                $data['total_pages'] = $pageCount;
 
-                $bookData['total_pages'] = $pageCount;
-            }
-
-            // --- AI: Generate metadata dari halaman pertama ---
-            if ($absolutePdfPath) {
-                $pdf = new \setasign\Fpdi\Fpdi();
-                $pageCount = $pdf->setSourceFile($absolutePdfPath);
-                if ($pageCount < 1) { throw new \Exception("PDF tidak valid."); }
-
-                $templateId = $pdf->importPage(1);
-                $size = $pdf->getTemplateSize($templateId);
-                $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
-                $pdf->useTemplate($templateId);
-                $firstPagePdfContent = $pdf->Output('S');
-
-                if (!empty($firstPagePdfContent)) {
-                    $pdfData = ['mime_type' => 'application/pdf', 'data' => base64_encode($firstPagePdfContent)];
-                    $prompt = "Analisis halaman pertama dari buku berjudul '{$validatedData['title']}'. Buat JSON: {\"author\": \"Nama Penulis\", \"publication_date\": \"YYYY-MM-DD\", \"overview\": \"Deskripsi singkat buku\"}";
-                    $aiGenerated = $this->geminiService->generateBookDetailsFromPdf($prompt, $pdfData);
-
-                    if ($aiGenerated && is_array($aiGenerated)) {
-                        $bookData['author'] = $aiGenerated['author'] ?? null;
-                        $bookData['publication_date'] = (!empty($aiGenerated['publication_date']) && strtotime($aiGenerated['publication_date']))
-                            ? date('Y-m-d', strtotime($aiGenerated['publication_date']))
-                            : null;
-                        $bookData['overview'] = $aiGenerated['overview'] ?? null;
-                    }
+                // 3. AI Analysis (Ambil 10 Halaman Pertama)
+                $aiData = $this->analyzePdfWithAi($absolutePath, $request->title);
+                if ($aiData) {
+                    $data = array_merge($data, $aiData);
                 }
             }
 
-            // Simpan buku
-            $book = Book::create($bookData);
+            $book = Book::create($data);
 
-            // --- Generate Kuis otomatis (AI) ---
-            if ($absolutePdfPath) {
-                \Log::info("[QuizGen] Starting quiz generation for Book ID: {$book->id}");
-                try {
-                    $fullTextContent = (new \Spatie\PdfToText\Pdf(config('services.pdftotext.path')))
-                        ->setPdf($absolutePdfPath)
-                        ->text();
-
-                    if (!empty($fullTextContent)) {
-                        $questionsData = $this->geminiService->generateQuizQuestions($fullTextContent, $book->title);
-                        if ($questionsData && is_array($questionsData)) {
-                            $quiz = $book->quiz()->create(['title' => "Kuis Pemahaman {$book->title}"]);
-                            foreach ($questionsData as $questionItem) {
-                                if (isset($questionItem['question_text'], $questionItem['options'], $questionItem['correct_answer'])) {
-                                    $quiz->questions()->create($questionItem);
-                                }
-                            }
-                            \Log::info("[QuizGen] Successfully generated " . count($questionsData) . " questions for Quiz ID: {$quiz->id}");
-                        }
-                    }
-                } catch (\Exception $e) {
-                    \Log::error("[QuizGen] Failed to generate quiz for Book ID: {$book->id}. Error: " . $e->getMessage());
-                }
-            }
-
-            return redirect()->route('admin.books.index')->with('success', "📘 Buku berhasil ditambahkan ({$bookData['total_pages']} halaman).");
+            return redirect()->route('admin.books.index')->with('success', "📘 Buku berhasil ditambahkan.");
 
         } catch (\Exception $e) {
-            \Log::error('General exception during book store: ' . $e->getMessage());
-            return redirect()->back()->withInput()->with('error', 'Terjadi kesalahan saat menyimpan buku: ' . $e->getMessage());
+            Log::error('Store Error: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
+    // 👇 INI YANG TADI HILANG, SUDAH SAYA KEMBALIKAN
     public function edit(Book $book)
     {
         return view('admin.books.edit', compact('book'));
@@ -137,120 +88,128 @@ class AdminBookController extends Controller
 
     public function update(Request $request, Book $book)
     {
-        $validatedData = $request->validate([
+        $request->validate([
             'title' => 'required|string|max:255|unique:books,title,' . $book->id,
-            'author' => 'nullable|string|max:255',
-            'publication_date' => 'nullable|date_format:Y-m-d',
-            'overview' => 'nullable|string',
-            'total_pages' => 'nullable|integer|min:1|max:200',
-            'pdf_file' => 'nullable|file|mimes:pdf|max:30720',
-            'cover_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'pdf_file' => 'nullable|file|mimes:pdf|max:20480',
+            'total_pages' => 'nullable|integer|max:200',
         ]);
 
         try {
-            $updateData = [
-                'title' => $validatedData['title'],
-                'author' => $validatedData['author'] ?? null,
-                'publication_date' => $validatedData['publication_date'] ?? null,
-                'overview' => $validatedData['overview'] ?? null,
-            ];
+            $data = ['title' => $request->title];
 
-            // ✅ Cover baru
+            // Update Cover
             if ($request->hasFile('cover_image')) {
-                if ($book->cover_image_path && Storage::disk('public')->exists($book->cover_image_path)) {
-                    Storage::disk('public')->delete($book->cover_image_path);
-                }
-                $updateData['cover_image_path'] = $request->file('cover_image')->store('books/covers', 'public');
+                if ($book->cover_image_path) Storage::disk('public')->delete($book->cover_image_path);
+                $data['cover_image_path'] = $request->file('cover_image')->store('books/covers', 'public');
             }
 
-            // ✅ Jika PDF baru diupload
+            // Update PDF
             if ($request->hasFile('pdf_file')) {
-                \Log::info("[AdminUpdate] PDF baru diunggah untuk buku ID: {$book->id}");
+                if ($book->file_path) Storage::disk('public')->delete($book->file_path);
 
-                if ($book->file_path && Storage::disk('public')->exists($book->file_path)) {
-                    Storage::disk('public')->delete($book->file_path);
-                }
+                $path = $request->file('pdf_file')->store('books/pdfs', 'public');
+                $data['file_path'] = $path;
+                $absolutePath = public_path('storage/' . $path);
 
-                $updateData['file_path'] = $request->file('pdf_file')->store('books/pdfs', 'public');
-                $absolutePdfPath = storage_path('app/public/' . $updateData['file_path']);
-
-                // 🚫 Validasi jumlah halaman otomatis dari PDF
-                $parser = new Parser();
-                $pdf = $parser->parseFile($absolutePdfPath);
-                $pageCount = count($pdf->getPages());
-
+                // Cek Halaman
+                $pageCount = $this->countPages($absolutePath);
                 if ($pageCount > 200) {
-                    Storage::disk('public')->delete($updateData['file_path']);
-                    return back()->with('error', "❌ E-book terlalu tebal! Maksimal 200 halaman (Anda mengunggah {$pageCount} halaman).");
+                    Storage::disk('public')->delete($path);
+                    return back()->with('error', "❌ Buku terlalu tebal ({$pageCount} hal).");
                 }
+                $data['total_pages'] = $pageCount;
 
-                $updateData['total_pages'] = $pageCount;
-
-                // 🧠 Regenerate AI info dari halaman pertama
-                $pdfFpdi = new \setasign\Fpdi\Fpdi();
-                $pdfFpdi->setSourceFile($absolutePdfPath);
-                $templateId = $pdfFpdi->importPage(1);
-                $size = $pdfFpdi->getTemplateSize($templateId);
-                $pdfFpdi->AddPage($size['orientation'], [$size['width'], $size['height']]);
-                $pdfFpdi->useTemplate($templateId);
-                $firstPagePdfContent = $pdfFpdi->Output('S');
-
-                if (!empty($firstPagePdfContent)) {
-                    $pdfData = [
-                        'mime_type' => 'application/pdf',
-                        'data' => base64_encode($firstPagePdfContent)
-                    ];
-
-                    $prompt = "Analisis halaman pertama dari buku '{$updateData['title']}'. "
-                        . "Buat JSON: {\"author\":..., \"publication_date\":..., \"overview\":...}";
-                    $aiGenerated = $this->geminiService->generateBookDetailsFromPdf($prompt, $pdfData);
-
-                    if ($aiGenerated && is_array($aiGenerated)) {
-                        $updateData['author'] = $aiGenerated['author'] ?? $updateData['author'];
-                        $updateData['publication_date'] = (!empty($aiGenerated['publication_date']) && strtotime($aiGenerated['publication_date']))
-                            ? date('Y-m-d', strtotime($aiGenerated['publication_date']))
-                            : $updateData['publication_date'];
-                        $updateData['overview'] = $aiGenerated['overview'] ?? $updateData['overview'];
-                    }
+                // Regenerate AI Info (Pake fungsi helper di bawah)
+                $aiData = $this->analyzePdfWithAi($absolutePath, $request->title);
+                if ($aiData) {
+                    $data = array_merge($data, $aiData);
                 }
-            }
-            else {
-                // ✅ Tidak ada PDF baru, tapi admin bisa ubah total_pages manual
-                if (!empty($validatedData['total_pages'])) {
-                    $updateData['total_pages'] = $validatedData['total_pages'];
-                }
+            } elseif ($request->filled('total_pages')) {
+                $data['total_pages'] = $request->total_pages;
             }
 
-            $book->update($updateData);
+            $book->update($data);
 
-            $totalPages = $updateData['total_pages'] ?? $book->total_pages;
-
-            return redirect()
-                ->route('admin.books.index')
-                ->with('success', "📘 Buku berhasil diperbarui ({$totalPages} halaman).");
+            return redirect()->route('admin.books.index')->with('success', "📘 Buku berhasil diperbarui.");
 
         } catch (\Exception $e) {
-            \Log::error("Error updating book ID {$book->id}: " . $e->getMessage());
-            return back()->withInput()->with('error', 'Terjadi kesalahan saat memperbarui buku: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Error Update: ' . $e->getMessage());
         }
     }
 
-
-
     public function destroy(Book $book)
     {
+        if ($book->file_path) Storage::disk('public')->delete($book->file_path);
+        if ($book->cover_image_path) Storage::disk('public')->delete($book->cover_image_path);
+        $book->delete();
+        return redirect()->route('admin.books.index')->with('success', 'Buku dihapus.');
+    }
+
+    // ==========================================
+    // 👇 FUNGSI PENDUKUNG (HELPER) BIAR RAPI
+    // ==========================================
+
+    /**
+     * Hitung jumlah halaman PDF
+     */
+    private function countPages($path)
+    {
+        $parser = new Parser();
+        $pdf = $parser->parseFile($path);
+        return count($pdf->getPages());
+    }
+
+    /**
+     * Ambil 10 halaman pertama & Kirim ke Gemini
+     */
+    private function analyzePdfWithAi($path, $title)
+    {
         try {
-            if ($book->file_path && Storage::disk('public')->exists($book->file_path)) {
-                Storage::disk('public')->delete($book->file_path);
+            $pdf = new Fpdi();
+            $pageCount = $pdf->setSourceFile($path);
+
+            // ✅ LOGIC BARU: Ambil sampai 10 halaman pertama
+            // Ini biar AI bisa baca Daftar Isi & Intro, bukan cuma sampul
+            $pagesToExtract = min($pageCount, 10);
+
+            // Buat PDF baru di memori
+            $pdf->AddPage();
+
+            for ($i = 1; $i <= $pagesToExtract; $i++) {
+                $tplId = $pdf->importPage($i);
+                $size = $pdf->getTemplateSize($tplId);
+
+                // Tambah halaman jika bukan halaman pertama (karena AddPage sudah dipanggil sekali diatas)
+                if ($i > 1) {
+                    $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                }
+                $pdf->useTemplate($tplId);
             }
-            if ($book->cover_image_path && Storage::disk('public')->exists($book->cover_image_path)) {
-                Storage::disk('public')->delete($book->cover_image_path);
+
+            $content = $pdf->Output('S'); // Output string
+
+            // Kirim ke Gemini
+            $pdfData = ['mime_type' => 'application/pdf', 'data' => base64_encode($content)];
+
+            // Prompt yang diperbaiki agar baca struktur buku
+            $prompt = "Analisis 10 halaman pertama dari buku '{$title}'. "
+                . "Cari JUDUL, PENULIS, TAHUN TERBIT, dan DAFTAR ISI (Table of Contents). "
+                . "Berdasarkan Daftar Isi dan Intro, buat ringkasan (overview) yang mencakup isi keseluruhan buku, bukan hanya sampul. "
+                . "Output JSON: {\"author\": \"...\", \"publication_date\": \"YYYY-MM-DD\", \"overview\": \"...\"}";
+
+            $result = $this->geminiService->generateBookDetailsFromPdf($prompt, $pdfData);
+
+            if ($result && is_array($result)) {
+                return [
+                    'author' => $result['author'] ?? 'Unknown',
+                    'publication_date' => $result['publication_date'] ?? null,
+                    'overview' => $result['overview'] ?? null,
+                ];
             }
-            $book->delete();
-            return redirect()->route('admin.books.index')->with('success', 'Buku berhasil dihapus.');
         } catch (\Exception $e) {
-             Log::error('Error deleting book ID ' . $book->id . ': ' . $e->getMessage());
-            return redirect()->route('admin.books.index')->with('error', 'Gagal menghapus buku: ' . $e->getMessage());
+            Log::error("AI Analysis Failed: " . $e->getMessage());
         }
+
+        return [];
     }
 }
