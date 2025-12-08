@@ -47,7 +47,7 @@
 
                         {{-- Ganti File PDF --}}
                         <div class="mb-4">
-                            <label for="pdf_file" class="block text-sm font-medium text-gray-700">Ganti File PDF (Opsional)</label>
+                            <label for="pdf_file" class="block text-sm font-medium text-gray-700">Ganti File PDF (Opsional), minimal 10 halaman dan maksimal 200 halaman</label>
                             <input type="file" name="pdf_file" id="pdf_file" accept=".pdf"
                                    class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 @error('pdf_file') border-red-500 @enderror">
                             @if($book->file_path)

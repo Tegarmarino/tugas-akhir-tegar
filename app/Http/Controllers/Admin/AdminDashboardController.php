@@ -22,7 +22,7 @@ class AdminDashboardController extends Controller
         $totalChapters = Chapter::count();
         $totalTests = Test::count();
         $totalUsers = User::where('role', 'mahasiswa')->count(); // hanya mahasiswa/non-admin
-        $totalResults = Result::count();
+        $totalResults = UserQuizAttempt::count(); // Total semua percobaan
 
 
         $totalAttempts = UserQuizAttempt::count();
@@ -32,19 +32,19 @@ class AdminDashboardController extends Controller
             : 0, 1);
 
         // 🔹 Nilai rata-rata global
-        $avgScoreGlobal = Result::count() > 0
-            ? round(Result::avg('score'), 2)
-            : 0;
+        $avgScoreGlobal = UserQuizAttempt::count() > 0 ? round(UserQuizAttempt::avg('score'), 2) : 0;
 
         // 🔹 Data per buku
-        $bookStats = Book::with(['tests.results'])
+        $bookStats = Book::with(['tests.userQuizAttempts'])
             ->get()
             ->map(function ($book) {
                 $tests = $book->tests;
-                $results = $tests->flatMap->results;
-                $avg = $results->count() ? round($results->avg('score'), 2) : 0;
-                $taken = $results->count();
-                $passed = $results->where('score', '>=', 80)->count();
+                // Ambil semua attempt dari semua tes di buku ini
+                $attempts = $tests->flatMap->userQuizAttempts;
+
+                $avg = $attempts->count() ? round($attempts->avg('score'), 2) : 0;
+                $taken = $attempts->count();
+                $passed = $attempts->where('score', '>=', 80)->count();
 
                 return [
                     'title' => $book->title,
@@ -58,6 +58,8 @@ class AdminDashboardController extends Controller
         // 🔹 Buku dengan performa tertinggi & terendah
         $topBook = $bookStats->sortByDesc('avg_score')->first();
         $worstBook = $bookStats->sortBy('avg_score')->first();
+
+
 
         // 🔹 Mahasiswa dengan progress terbanyak
         $topStudents = ReadingProgress::selectRaw('user_id, COUNT(book_id) as total_books, MAX(updated_at) as last_update')

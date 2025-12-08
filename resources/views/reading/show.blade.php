@@ -78,8 +78,9 @@
                                                 ->first();
 
                                             $result = $chapterTest
-                                                ? \App\Models\Result::where('user_id', auth()->id())
+                                                ? \App\Models\UserQuizAttempt::where('user_id', auth()->id())
                                                     ->where('test_id', $chapterTest->id)
+                                                    ->latest()
                                                     ->first()
                                                 : null;
                                         @endphp

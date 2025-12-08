@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Book;
 use App\Models\ReadingProgress;
-use App\Models\Result;
 use App\Models\Favorite;
 use Illuminate\Support\Facades\Auth;
 use App\Models\UserQuizAttempt;
@@ -21,11 +20,22 @@ class UserDashboardController extends Controller
         $progressBooks = ReadingProgress::where('user_id', $user->id)->pluck('book_id')->unique();
         $booksReadCount = $progressBooks->count();
 
-        $testResults = Result::where('user_id', $user->id)->get();
-        $testsDone = $testResults->count();
-        $testsPassed = $testResults->where('score', '>=', 80)->count();
-        $testsFailed = $testResults->where('score', '<', 80)->count();
-        $avgScore = $testsDone > 0 ? round($testResults->avg('score'), 2) : 0;
+        // Statistik berbasis Attempt
+        $uniqueTestsTaken = UserQuizAttempt::where('user_id', $user->id)->distinct('test_id')->count();
+        $testsDone = $uniqueTestsTaken; // Jumlah tes unik yang pernah dicoba
+
+        // Hitung jumlah tes unik yang PERNAH lulus (skor >= 80 minimal sekali)
+        $testsPassed = UserQuizAttempt::where('user_id', $user->id)
+            ->where('score', '>=', 80)
+            ->distinct('test_id')
+            ->count();
+
+        $testsFailed = $testsDone - $testsPassed;
+
+        // Rata-rata nilai dari semua percobaan
+        $avgScore = UserQuizAttempt::where('user_id', $user->id)->avg('score');
+        $avgScore = $avgScore ? round($avgScore, 2) : 0;
+
 
         // Hitung total attempt
         $totalAttempts = UserQuizAttempt::where('user_id', $user->id)->count();
@@ -57,14 +67,16 @@ class UserDashboardController extends Controller
                 : 0;
 
             $postTests = $book->tests->map(function ($test) use ($user, $book, &$unpassedTests) {
-                $result = Result::where('user_id', $user->id)
+                // Ganti Result dengan UserQuizAttempt (Ambil yang terbaru)
+                $latestAttempt = UserQuizAttempt::where('user_id', $user->id)
                     ->where('test_id', $test->id)
+                    ->latest()
                     ->first();
 
                 $chapterTitle = optional($test->chapter)->title ?? "Bab Tidak Dikenal";
 
-                if (!$result) {
-                    // 🔹 Belum pernah dikerjakan sama sekali
+                if (!$latestAttempt) {
+                    // 🔹 Belum pernah dikerjakan
                     $unpassedTests[] = [
                         'book' => $book->title,
                         'chapter' => $chapterTitle,
@@ -72,12 +84,12 @@ class UserDashboardController extends Controller
                         'test_id' => $test->id
                     ];
                     $status = 'Belum Dikerjakan';
-                } elseif ($result->score < 80) {
-                    // 🔹 Sudah dikerjakan tapi gagal
+                } elseif ($latestAttempt->score < 80) {
+                    // 🔹 Sudah dikerjakan tapi attempt terakhir masih gagal
                     $unpassedTests[] = [
                         'book' => $book->title,
                         'chapter' => $chapterTitle,
-                        'score' => $result->score,
+                        'score' => $latestAttempt->score,
                         'test_id' => $test->id
                     ];
                     $status = 'Belum Lulus';
@@ -87,7 +99,7 @@ class UserDashboardController extends Controller
 
                 return [
                     'chapter_id' => $test->chapter_id,
-                    'score' => $result->score ?? null,
+                    'score' => $latestAttempt->score ?? null,
                     'status' => $status,
                 ];
             });

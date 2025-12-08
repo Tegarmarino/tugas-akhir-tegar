@@ -19,7 +19,8 @@ class CheckPreTest
         $preTest = $book->tests()->where('type', 'pre')->first();
 
         if ($preTest) {
-            $hasDone = \App\Models\Result::where('user_id', $user->id)
+            // Cek di tabel attempt, apakah user pernah mengerjakan (ada record-nya)
+            $hasDone = \App\Models\UserQuizAttempt::where('user_id', $user->id)
                 ->where('test_id', $preTest->id)
                 ->exists();
 

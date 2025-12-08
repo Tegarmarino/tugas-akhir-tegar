@@ -160,17 +160,16 @@ class AdminBookController extends Controller
     }
 
     /**
-     * Ambil 10 halaman pertama & Kirim ke Gemini
+     * Analisis PDF Akademik (Buku, Jurnal, Slide) dengan AI
      */
     private function analyzePdfWithAi($path, $title)
     {
         try {
             $pdf = new Fpdi();
-            $pageCount = $pdf->setSourceFile($path);
+            $pageCountSource = $pdf->setSourceFile($path);
 
-            // ✅ LOGIC BARU: Ambil sampai 10 halaman pertama
-            // Ini biar AI bisa baca Daftar Isi & Intro, bukan cuma sampul
-            $pagesToExtract = min($pageCount, 10);
+            // Ambil 10 halaman pertama untuk konteks
+            $pagesToExtract = min($pageCountSource, 10);
 
             // Buat PDF baru di memori
             $pdf->AddPage();
@@ -179,37 +178,69 @@ class AdminBookController extends Controller
                 $tplId = $pdf->importPage($i);
                 $size = $pdf->getTemplateSize($tplId);
 
-                // Tambah halaman jika bukan halaman pertama (karena AddPage sudah dipanggil sekali diatas)
                 if ($i > 1) {
                     $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
                 }
                 $pdf->useTemplate($tplId);
             }
 
-            $content = $pdf->Output('S'); // Output string
+            $content = $pdf->Output('S');
 
-            // Kirim ke Gemini
             $pdfData = ['mime_type' => 'application/pdf', 'data' => base64_encode($content)];
 
-            // Prompt yang diperbaiki agar baca struktur buku
-            $prompt = "Analisis 10 halaman pertama dari buku '{$title}'. "
-                . "Cari JUDUL, PENULIS, TAHUN TERBIT, dan DAFTAR ISI (Table of Contents). "
-                . "Berdasarkan Daftar Isi dan Intro, buat ringkasan (overview) yang mencakup isi keseluruhan buku, bukan hanya sampul. "
-                . "Output JSON: {\"author\": \"...\", \"publication_date\": \"YYYY-MM-DD\", \"overview\": \"...\"}";
+            // 🧠 PROMPT SPESIAL UNTUK MATERI KULIAH INFORMATIKA
+            // Kita handle: Buku Teks, Jurnal Ilmiah, dan Slide Presentasi
+            $prompt = "Analisis dokumen akademik ini (bisa berupa BUKU TEKS, JURNAL ILMIAH, atau SLIDE KULIAH). "
+                . "Judul file: '{$title}'. "
+                . "\n\nTugas Ekstraksi Metadata:"
+                . "\n1. PENULIS: Cari nama pengarang, dosen, atau peneliti utama. Jika banyak, ambil yang pertama atau gunakan 'dkk'."
+                . "\n2. TAHUN TERBIT: Cari tahun di halaman hak cipta, header jurnal, atau cover slide. "
+                . "   - PENTING: Jika tidak ada tahun spesifik, biarkan kosong (null). JANGAN mengarang."
+                . "\n3. OVERVIEW (Ringkasan): "
+                . "   - Baca Abstrak, Pendahuluan, atau Daftar Isi."
+                . "   - Buat ringkasan 2-3 kalimat tentang topik teknis informatika yang dibahas dalam dokumen ini."
+                . "\n\nFormat Output JSON Wajib:"
+                . "\n{"
+                . "\n  \"author\": \"Nama Penulis atau null\","
+                . "\n  \"publication_date\": \"YYYY-MM-DD atau null\","
+                . "\n  \"overview\": \"Ringkasan isi...\""
+                . "\n}"
+                . "\n\nAturan Keras: Jika data tidak ditemukan, isi dengan null. JANGAN menulis kata 'Unknown', 'N/A', atau 'Tidak ditemukan'.";
 
             $result = $this->geminiService->generateBookDetailsFromPdf($prompt, $pdfData);
 
+            // Logging untuk monitoring (opsional, bisa dihapus saat production)
+            Log::info("AI Result for {$title}: ", $result ?? ['status' => 'empty']);
+
             if ($result && is_array($result)) {
+                // --- SANITASI TANGGAL (ANTI ERROR) ---
+                $rawDate = $result['publication_date'] ?? null;
+                $cleanDate = null;
+
+                // Logika Pengecekan Ganda:
+                // 1. Pastikan tidak null
+                // 2. Pastikan bukan string "N/A" atau "Unknown" (case insensitive)
+                // 3. Cek apakah strtotime bisa membacanya
+                if ($rawDate &&
+                    !in_array(strtolower($rawDate), ['n/a', 'unknown', 'tidak diketahui', 'tidak ditemukan']) &&
+                    strtotime($rawDate) !== false
+                ) {
+                    // Jika valid, format ke Y-m-d untuk MySQL
+                    $cleanDate = date('Y-m-d', strtotime($rawDate));
+                }
+
                 return [
-                    'author' => $result['author'] ?? 'Unknown',
-                    'publication_date' => $result['publication_date'] ?? null,
-                    'overview' => $result['overview'] ?? null,
+                    'author' => $result['author'] ?? 'Tidak diketahui', // Default string aman
+                    'publication_date' => $cleanDate, // Bisa NULL (aman untuk database)
+                    'overview' => $result['overview'] ?? 'Ringkasan tidak tersedia.',
                 ];
             }
         } catch (\Exception $e) {
-            Log::error("AI Analysis Failed: " . $e->getMessage());
+            // Jika AI gagal total, log errornya tapi JANGAN CRASH aplikasinya
+            Log::error("AI Analysis Failed for {$title}: " . $e->getMessage());
         }
 
+        // Jika error, kembalikan array kosong agar sistem tetap lanjut menyimpan buku (tanpa metadata AI)
         return [];
     }
 }

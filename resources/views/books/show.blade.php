@@ -105,7 +105,7 @@
                             </p>
                         </div>
                         <span class="text-indigo-600 text-3xl font-bold whitespace-nowrap">
-                            {{ $avgPostTestScore }}%
+                            {{ $avgPostTestScore }}
                         </span>
                     </div>
                 @endif
@@ -140,9 +140,11 @@
                             ->first();
 
                         // ✅ Ambil hasil test user untuk chapter ini
+                        // Ambil attempt terakhir
                         $result = $chapterTest
-                            ? \App\Models\Result::where('user_id', auth()->id())
+                            ? \App\Models\UserQuizAttempt::where('user_id', auth()->id())
                                 ->where('test_id', $chapterTest->id)
+                                ->latest()
                                 ->first()
                             : null;
 

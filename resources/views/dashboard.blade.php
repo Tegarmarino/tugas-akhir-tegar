@@ -45,7 +45,7 @@
                     </div>
                     <div class="bg-orange-50 p-6 rounded-lg shadow">
                         <h3 class="text-sm font-semibold text-orange-800">📊 Rata-rata Nilai Attempt</h3>
-                        <p class="text-3xl font-bold text-orange-600 mt-1">{{ round($avgAttemptScore, 1) }}%</p>
+                        <p class="text-3xl font-bold text-orange-600 mt-1">{{ round($avgAttemptScore, 1) }}</p>
                     </div>
                     <div class="bg-indigo-50 p-6 rounded-lg shadow">
                         <h3 class="text-sm font-semibold text-indigo-800">🧠 Pre-Test Attempt</h3>

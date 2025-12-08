@@ -28,10 +28,6 @@ class Book extends Model
     /**
      * Get the quiz associated with the book.
      */
-    public function quiz()
-    {
-        return $this->hasOne(Quiz::class);
-    }
 
     /**
      * Get the reading progress records for the book.
@@ -44,11 +40,6 @@ class Book extends Model
     public function favoritedByUsers()
     {
         return $this->belongsToMany(User::class, 'favorites');
-    }
-
-    public function bookmarks()
-    {
-        return $this->hasMany(Bookmark::class);
     }
 
     // public function chapters()

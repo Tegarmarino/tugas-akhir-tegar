@@ -34,5 +34,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             QuestionSeeder::class,
         ]);
+
+        if (!app()->environment('testing')) {
+            $this->call([
+                DummyContentSeeder::class,
+            ]);
+        }
     }
 }

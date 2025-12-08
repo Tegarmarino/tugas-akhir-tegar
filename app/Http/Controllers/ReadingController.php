@@ -202,21 +202,54 @@ class ReadingController extends Controller
         return response()->json(['definition' => $aiResponse]);
     }
 
+    // public function resetProgress(Book $book)
+    // {
+    //     $user = auth()->user();
+
+    //     // Hapus progres baca
+    //     $book->readingProgress()->where('user_id', $user->id)->delete();
+
+    //     // Hapus hasil tes pre & post
+    //     \App\Models\Result::where('user_id', $user->id)
+    //         ->whereIn('test_id', $book->tests->pluck('id'))
+    //         ->delete();
+
+    //     return redirect()->route('books.show', $book->id)
+    //         ->with('success', 'Progres membaca dan hasil tes berhasil direset.');
+    // }
+
     public function resetProgress(Book $book)
     {
         $user = auth()->user();
 
-        // Hapus progres baca
+        // 1. Hapus progres baca (halaman terakhir)
+        // Ini akan mereset halaman kembali ke 1
         $book->readingProgress()->where('user_id', $user->id)->delete();
 
-        // Hapus hasil tes pre & post
-        \App\Models\Result::where('user_id', $user->id)
-            ->whereIn('test_id', $book->tests->pluck('id'))
-            ->delete();
+        // 2. Ambil semua ID tes yang ada di buku ini (Pre-Test & Post-Test)
+        $testIds = $book->tests()->pluck('id');
+
+        if ($testIds->isNotEmpty()) {
+            // 3. Hapus semua riwayat percobaan (attempt) user di tes-tes tersebut
+            // Ini yang bikin rata-rata nilai dan status "Lulus" hilang
+            \App\Models\UserQuizAttempt::where('user_id', $user->id)
+                ->whereIn('test_id', $testIds)
+                ->delete();
+
+            // 4. (PEMBERSIHAN EKSTRA) Hapus data di tabel 'results' lama jika masih ada
+            // Biar bersih total walaupun tabel ini sudah deprecated
+            try {
+                \DB::table('results')
+                    ->where('user_id', $user->id)
+                    ->whereIn('test_id', $testIds)
+                    ->delete();
+            } catch (\Exception $e) {
+                // Abaikan jika tabel results sudah dihapus dari database
+            }
+        }
 
         return redirect()->route('books.show', $book->id)
-            ->with('success', 'Progres membaca dan hasil tes berhasil direset.');
+            ->with('success', 'Semua progres baca dan riwayat tes berhasil direset total.');
     }
-
 
 }

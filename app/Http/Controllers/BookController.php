@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Http\Controllers; // Namespace sudah benar untuk user-facing controller
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // Dibutuhkan untuk mengecek status favorit
+use Illuminate\Support\Facades\Auth;
+use App\Models\UserQuizAttempt;
 
 // GeminiService dan PdfToText tidak diperlukan di sini jika controller ini
 // hanya untuk menampilkan katalog dan detail buku yang datanya sudah ada.
@@ -82,8 +83,9 @@ class BookController extends Controller
 
             // 1. Logic Status Pre-Test (Hanya berjalan jika $preTest ada)
             if ($preTest) {
-                $result = \App\Models\Result::where('user_id', Auth::id())
+                $result = UserQuizAttempt::where('user_id', Auth::id())
                     ->where('test_id', $preTest->id)
+                    ->latest() // Ambil yang paling baru
                     ->first();
 
                 if ($result) {
@@ -98,9 +100,17 @@ class BookController extends Controller
                                 ->pluck('id');
 
             if ($postTestsIds->isNotEmpty()) {
-                $avgPostTestScore = \App\Models\Result::where('user_id', Auth::id())
-                                                     ->whereIn('test_id', $postTestsIds)
-                                                     ->avg('score');
+                // Ambil semua attempt untuk tes-tes ini, urutkan dari yang paling baru
+                $allAttempts = \App\Models\UserQuizAttempt::where('user_id', Auth::id())
+                    ->whereIn('test_id', $postTestsIds)
+                    ->orderBy('created_at', 'desc') // Biar yang paling atas adalah yang terbaru
+                    ->get();
+
+                // Ambil satu attempt unik per test_id (karena sudah diurutkan desc, otomatis ambil yang latest)
+                $latestAttempts = $allAttempts->unique('test_id');
+
+                // Hitung rata-rata dari skor-skor terakhir tersebut
+                $avgPostTestScore = $latestAttempts->avg('score');
                 if ($avgPostTestScore !== null) {
                     $avgPostTestScore = round($avgPostTestScore, 2);
                 }

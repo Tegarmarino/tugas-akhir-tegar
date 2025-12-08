@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Test;
-use App\Models\Result;
 use App\Models\UserQuizAttempt; // ✅ Tambahkan ini
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -55,12 +54,6 @@ class QuizController extends Controller
         }
 
         $finalScore = $total > 0 ? round(($score / $total) * 100, 2) : 0;
-
-        // ✅ Simpan hasil ke tabel results (untuk status lulus/gagal)
-        $result = Result::updateOrCreate(
-            ['user_id' => $user->id, 'test_id' => $quiz->id],
-            ['score' => $finalScore]
-        );
 
         // ==============================
         // ✅ Simpan ke tabel user_quiz_attempts

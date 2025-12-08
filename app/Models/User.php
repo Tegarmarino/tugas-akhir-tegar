@@ -61,8 +61,4 @@ class User extends Authenticatable
     /**
      * The bookmarks that belong to the user.
      */
-    public function bookmarks()
-    {
-        return $this->hasMany(Bookmark::class);
-    }
 }
