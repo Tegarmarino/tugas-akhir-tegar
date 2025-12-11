@@ -243,10 +243,14 @@
         {{-- MathJax Config --}}
         <script>
             window.MathJax = {
-                tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], processEscapes: true },
-                svg: { fontCache: 'global', scale: 0.9 },
-                options: { renderActions: { addMenu: [0, '', ''] } }
+                tex: {
+                    inlineMath: [['$', '$'], ['\\(', '\\)']],
+                    displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                    processEscapes: true
+                },
+                svg: { fontCache: 'global', scale: 0.9 }
             };
+
         </script>
         <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -395,23 +399,29 @@
                 if (sender === 'ai') {
                     const content = document.createElement('div');
                     content.classList.add('prose', 'dark:prose-invert', 'leading-relaxed');
+
+                    // 1) Render markdown AI -> HTML
                     content.innerHTML = marked.parse(message);
+
                     div.appendChild(content);
                     chatOutput.appendChild(div);
-                    // Render LaTeX setelah DOM update
-                    if (window.MathJax) {
+                    chatOutput.scrollTop = chatOutput.scrollHeight;
+
+                    // 2) Render LaTeX setelah HTML masuk DOM
+                    if (window.MathJax && window.MathJax.typesetPromise) {
+                        // Sedikit delay supaya layout stabil dulu
                         setTimeout(() => {
-                            MathJax.typesetPromise([content]);
-                        }, 150);
+                            MathJax.typesetPromise([content]).catch(err => console.error('MathJax error:', err));
+                        }, 100);
                     }
                 } else {
-                    // User message, potentially from template
-                    const prefix = isTemplate ? '⚡ ' : ''; // Ubah penanda Quick Prompt
+                    const prefix = isTemplate ? '⚡ ' : '';
                     div.innerHTML = `<span class="font-medium">${prefix}${message}</span>`;
                     chatOutput.appendChild(div);
+                    chatOutput.scrollTop = chatOutput.scrollHeight;
                 }
-                chatOutput.scrollTop = chatOutput.scrollHeight;
             }
+
 
             /* Fungsi cari bab aktif */
             function getCurrentChapterId(pageNum) {
@@ -440,6 +450,7 @@
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
                         body: JSON.stringify({ question })
                     });
+                    // Output AI response dikembalikan berupa const data
                     const data = await res.json();
                     addChatMessage(data.reply || 'Tidak ada jawaban AI.', 'ai');
                 } catch (e) {
@@ -464,6 +475,7 @@
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
                         body: JSON.stringify({ question, page_number: currentPageNum })
                     });
+                    // Output AI response dikembalikan berupa const data
                     const data = await response.json();
                     addChatMessage(data.reply || 'Tidak ada jawaban AI.', 'ai');
                 } catch (e) {

@@ -115,6 +115,8 @@ class ReadingController extends Controller
         $promptParts[] = "Analisis semua konten di halaman PDF ini—termasuk teks, gambar, grafik, atau tabel.";
         $promptParts[] = "Pertanyaan pengguna adalah: \"{$userQuestion}\".";
         $promptParts[] = "Jawablah pertanyaan pengguna secara akurat berdasarkan konten visual dari halaman PDF yang diberikan.";
+        $promptParts[] = 'Jika ada notasi matematika atau rumus, tuliskan dalam format LaTeX dan bungkus dengan $$ ... $$, misalnya: $$v_0 e_1 v_1 e_2 \dots v_{n-1} e_n v_n$$.';
+
 
         $fullPrompt = implode(" ", $promptParts);
         Log::info("[ChatAI-PDF] Sending multimodal prompt to Gemini.");
@@ -179,6 +181,7 @@ class ReadingController extends Controller
             Pertanyaan pengguna: \"{$userQuestion}\".
             Jawab dengan bahasa akademik, berdasarkan isi bab PDF yang diberikan.
             Jika topik tidak dibahas dalam bab ini, nyatakan dengan sopan bahwa topik tersebut tidak ditemukan.
+            Jika ada rumus atau notasi matematika, gunakan format LaTeX dengan $$ ... $$ agar bisa dirender MathJax di tampilan.
         ";
 
         try {

@@ -42,7 +42,7 @@ Route::middleware('auth')->group(function () {
          ->name('books.read');
     Route::post('/books/{book}/chat', [ReadingController::class, 'chatWithBookAI'])->name('books.chat');
     Route::post('/books/{book}/highlight-define', [ReadingController::class, 'defineHighlightedText'])->name('books.highlight.define');
-    Route::resource('bookmarks', BookmarkController::class)->only(['store', 'destroy', 'index']); // Untuk bookmark
+    // Route::resource('bookmarks', BookmarkController::class)->only(['store', 'destroy', 'index']); // Untuk bookmark
 
     // Route untuk menampilkan halaman kuis
     Route::get('/quiz/{quiz}', [QuizController::class, 'show'])->name('quiz.show');
